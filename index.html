@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dashboard de Viaje</title>
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icono-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="cabecera"></header>
+  <div id="aviso" hidden></div>
+  <main id="contenido"></main>
+  <nav id="navegacion">
+    <button data-pestana="hoy">Hoy</button>
+    <button data-pestana="itinerario">Itinerario</button>
+    <button data-pestana="costos">Costos</button>
+    <button data-pestana="reservas">Reservas</button>
+  </nav>
+  <dialog id="hoja"></dialog>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
