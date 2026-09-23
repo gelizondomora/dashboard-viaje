@@ -18,9 +18,9 @@ function probarTodo() {
   return res;
 }
 
-const DATOS_EJEMPLO = { nombre: 'Colombia 2026', personas: 2, monedaLocal: 'COP', monedaCasa: 'CRC' };
+var DATOS_EJEMPLO = { nombre: 'Colombia 2026', personas: 2, monedaLocal: 'COP', monedaCasa: 'CRC' };
 
-const LIBRO_ORIGINAL = {
+var LIBRO_ORIGINAL = {
   Costos: [
     ['Detalle', 'Efectivo?', 'Monto Dos Personas', 'Colones', 'Por Persona', '', 'Tipo de Cambio', ''],
     ['Vuelos', '', 696.92, 317098.6, 158549.3, '', 'COP-CRC', 0.14],
@@ -64,7 +64,7 @@ const LIBRO_ORIGINAL = {
     ['Zipaquirá y lago Guatavita', 'Martes, 29 de septiembre de 2026, 8:00', 'Hotel'],
   ],
 };
-const ENLACES_ORIGINALES = ['', 'https://www.getyourguide.com/booking/EJEMPLO-GUATAPE', 'https://www.getyourguide.com/booking/EJEMPLO-ZIPAQUIRA'];
+var ENLACES_ORIGINALES = ['', 'https://www.getyourguide.com/booking/EJEMPLO-GUATAPE', 'https://www.getyourguide.com/booking/EJEMPLO-ZIPAQUIRA'];
 
 pruebaLogica('normalizar quita tildes, mayúsculas y espacios', () => {
   igualL(normalizar('  Mañana-Tarde '), 'manana-tarde');
