@@ -1,5 +1,6 @@
 import { totales } from './compute.js';
 import { esc, dinero, fechaCorta, marcas } from './formato.js';
+import { graficosHtml } from './charts.js';
 
 export function renderCostos(v, { filtro }) {
   const t = totales(v);
@@ -17,7 +18,7 @@ export function renderCostos(v, { filtro }) {
       <div><strong>${esc(c.detalle)}</strong>${marcas(c)}<small>${esc(c.categoria)}${c.fecha ? ` · ${esc(fechaCorta(c.fecha))}` : ''}${c.efectivo ? ' · efectivo' : ''}</small></div>
       <div class="montos"><span>${c.real ? dinero(c.real.usd, 'USD') : '<em>sin real</em>'}</span><small>plan ${c.presupuesto ? dinero(c.presupuesto.usd, 'USD') : '—'}</small></div>
     </li>`).join('');
-  return kpis + `<section class="tarjeta"><div class="barra"><h2>Gastos</h2>
+  return kpis + graficosHtml() + `<section class="tarjeta"><div class="barra"><h2>Gastos</h2>
       <select id="filtro-categoria"><option value="">Todas</option>${categorias.map(c => `<option${c === filtro ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
       <button class="primario" data-accion="agregar-costo">＋ gasto</button></div>
     <ul class="lista-gastos">${lista}</ul></section>`;

@@ -10,6 +10,7 @@ import { renderHoy } from './render-hoy.js';
 import { renderItinerario } from './render-itinerario.js';
 import { renderCostos } from './render-costos.js';
 import { renderReservas } from './render-reservas.js';
+import { pintarGraficos } from './charts.js';
 
 const params = new URLSearchParams(location.search);
 const demo = params.has('demo');
@@ -68,6 +69,7 @@ function pintar() {
     c.innerHTML = renderItinerario(vista, { vista: estado.vistaItinerario, choques: choques(vista), hoy: hoy() });
   } else if (estado.pestana === 'costos') {
     c.innerHTML = renderCostos(vista, { filtro: estado.filtroCategoria });
+    pintarGraficos(vista);
   } else {
     c.innerHTML = renderReservas(vista);
   }

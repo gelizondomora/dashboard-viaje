@@ -34,3 +34,7 @@ prueba('render: el texto de la hoja se escapa', () => {
   const html = renderCostos(parsearDatos(conValores(rawEjemplo(), 'Costos', 1, { 'Detalle': '<img src=x>' })), { filtro: '' });
   verdadero(html.includes('&lt;img src=x&gt;') && !html.includes('<img src=x>'));
 });
+prueba('render: Costos incluye los tres gráficos', () => {
+  const c = renderCostos(v(), { filtro: '' });
+  for (const id of ['g-categorias', 'g-acumulado', 'g-efectivo']) verdadero(c.includes(`id="${id}"`), `falta ${id}`);
+});
