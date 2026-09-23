@@ -23,10 +23,10 @@ dos personas, Bogotá y Medellín), pero la estructura sirve para viajes futuros
 ## Fases
 
 - **Fase 1 (este documento):** estructura de hoja reutilizable, lectura y escritura vía
-  Apps Script, cola sin conexión, conversor de moneda, pestaña Lugares, 4 pantallas y
-  3 gráficos.
+  Apps Script, cola sin conexión, conversor de moneda, pestaña Lugares, 4 pantallas,
+  3 gráficos y timeline del itinerario con detección de choques de horario.
 - **Fase 2 (futuro, otro spec):** selector de viajes y creación de un viaje desde plantilla,
-  timeline visual del itinerario, comparación entre viajes, gasto por ciudad, notificaciones.
+  comparación entre viajes, gasto por ciudad, notificaciones.
 
 ## Estructura de la hoja
 
@@ -75,8 +75,8 @@ monedas definidas arriba. Así, en un viaje a México basta con poner `MXN` y su
 
 ### Itinerario
 
-ID, Fechas (`d/m/yyyy`), Tiempo (Mañana, Mañana-Tarde, Tarde, Noche), Ciudad, Actividad,
-Obligatorio/Opcional.
+ID, Fechas (`d/m/yyyy`), Tiempo (Mañana, Mañana-Tarde, Tarde, Noche), **Hora inicio**
+(`H:MM`, opcional), **Hora fin** (`H:MM`, opcional), Ciudad, Actividad, Obligatorio/Opcional.
 
 ### Lugares (nueva)
 
@@ -93,7 +93,8 @@ Subzonas de una actividad, por ejemplo tiendas dentro de "Zona T / Compras".
 
 ### Reservas
 
-ID, Tour, Fecha y hora (`"<Día>, <d> de <mes> de <yyyy>, <H:MM>"`), Recogida, Enlace.
+ID, Tour, Fecha y hora (`"<Día>, <d> de <mes> de <yyyy>, <H:MM>"`), Recogida, Enlace,
+**Actividad ID** (opcional: la actividad del Itinerario a la que corresponde la reserva).
 
 ### Migración (`prepararHoja()`)
 
@@ -113,10 +114,13 @@ cambia nada la segunda vez.
      Medellin Hospedaje; Comida = Comida; Tours = Zipaquirá y lago Guatavita,
      Guatapé desde Medellín, Tiquete Catedral de Sal, Entrada Parque Nacional;
      Compras = Compras, Compras Varias.
-4. En **Itinerario** agrega la columna ID.
+4. En **Itinerario** agrega las columnas ID, Hora inicio y Hora fin (vacías).
 5. Crea la pestaña **Lugares** vacía, con sus encabezados.
-6. En **Reservas** agrega ID y Enlace; Enlace se rellena con el hipervínculo actual de la
-   celda Tour (las URLs de GetYourGuide).
+6. En **Reservas** agrega ID, Enlace y Actividad ID:
+   - Enlace se rellena con el hipervínculo actual de la celda Tour (las URLs de GetYourGuide).
+   - Actividad ID se rellena con la actividad del mismo día cuyo nombre coincide con el Tour
+     (sin distinguir mayúsculas ni tildes): Zipaquirá → 29/9, Guatapé → 2/10. Si no hay
+     coincidencia única, queda vacío.
 7. Crea la pestaña oculta **_Registro** (ver "Idempotencia").
 
 ## Reglas de cálculo
@@ -137,6 +141,27 @@ cambia nada la segunda vez.
   Ejemplo: 85.000 COP → $26,35 · ₡11.900.
 - **"Hoy"** es la fecha local del teléfono, comparada solo por día.
 - **Orden de franjas:** Mañana, Mañana-Tarde, Tarde, Noche; cualquier otro valor va al final.
+
+### Horarios y choques
+
+- **Rango de cada franja:** Mañana 6:00–12:00, Tarde 12:00–18:00, Noche 18:00–24:00,
+  Mañana-Tarde 6:00–18:00.
+- **Intervalo de una actividad** (en su día):
+  - con Hora inicio y Hora fin → ese intervalo;
+  - solo con Hora inicio → desde esa hora hasta el fin de su franja (o +1 h si no tiene franja);
+  - solo con Hora fin → desde el inicio de su franja hasta esa hora;
+  - sin horas → el rango de su franja;
+  - si una **reserva vinculada** (Actividad ID) tiene hora y la actividad no tiene Hora inicio,
+    la hora de la reserva se usa como Hora inicio;
+  - sin horas ni franja reconocible → no se ubica en el timeline y aparece en "Sin horario".
+- **Choque:** dos actividades del mismo día cuyos intervalos `[a,b)` y `[c,d)` cumplen
+  `a < d` y `c < b`. Las que solo se tocan (una termina 12:00 y la otra empieza 12:00) no chocan.
+  Las opcionales también cuentan.
+- **Reservas sin actividad vinculada:** se tratan como un instante. Chocan si ese instante cae
+  dentro del intervalo de una actividad de ese día.
+- Una Hora fin menor o igual que Hora inicio se marca ⚠ y la actividad se excluye de la
+  detección de choques.
+- Con los datos del 2026-09-23 **no hay choques**.
 - Una fila con un monto o una fecha ilegible se muestra con ⚠ y se excluye de los cálculos.
 
 ## Arquitectura
@@ -168,7 +193,8 @@ las Propiedades del script; cualquier petición sin la clave correcta recibe
   `{clave, ops:[{opId, op:"agregar"|"modificar"|"eliminar", tabla, id?, valores?}]}`.
   - `agregar`: añade una fila al final con un ID nuevo (máximo + 1) y devuelve el ID.
   - `modificar`: busca por ID y cambia solo las columnas incluidas en `valores`.
-  - `eliminar`: busca por ID y borra la fila. Si la fila es de Itinerario, también borra sus Lugares.
+  - `eliminar`: busca por ID y borra la fila. Si la fila es de Itinerario, también borra sus Lugares
+    y deja vacío el Actividad ID de las Reservas vinculadas (la reserva no se borra).
   - Respuesta: `{ok, resultados:[{opId, ok, id?, error?}]}`. Si el ID no existe, el error es `"no existe"`.
 - **Concurrencia:** cada `doPost` se ejecuta dentro de `LockService.getScriptLock()`.
 - **Idempotencia:** cada `opId` aplicado se guarda en la pestaña oculta `_Registro`
@@ -189,7 +215,8 @@ El repositorio **no contiene** datos del viaje, la URL del script ni la clave.
 | `index.html`       | Estructura, barra inferior de 4 pestañas y pantalla de Ajustes        |
 | `styles.css`       | Estilos para móvil y modo oscuro automático                          |
 | `js/parse.js`      | Puro: JSON del script → objetos tipados (montos, fechas, tipos de cambio) |
-| `js/compute.js`    | Puro: totales, diferencias, efectivo, acumulado por día, "hoy", conversor |
+| `js/compute.js`    | Puro: totales, diferencias, efectivo, acumulado por día, "hoy", conversor, intervalos y choques |
+| `js/timeline.js`   | Dibuja el timeline del itinerario (DOM/CSS, sin librería)            |
 | `js/api.js`        | Llamadas al script (`leer`, `enviar`) con timeout de 10 s             |
 | `js/queue.js`      | Cola de operaciones pendientes; aplicación optimista sobre los datos locales |
 | `js/store.js`      | Estado: últimos datos leídos + cola, guardados en `localStorage`      |
@@ -237,8 +264,18 @@ Sin conexión aparece una franja "Sin conexión · datos de hace X".
    - Efectivo restante en USD y moneda de casa.
    - Conversor: moneda local → USD y moneda de casa.
    - Antes del viaje: "Faltan N días" y la vista previa del primer día. Después: "Viaje terminado".
-2. **Itinerario:** días agrupados por ciudad, con las opcionales diferenciadas y el día actual
-   resaltado. Botones ＋ actividad, ＋ lugar, editar y eliminar.
+2. **Itinerario**, con dos vistas que se alternan con un interruptor:
+   - **Timeline:** una fila por día con un eje horario de 6:00 a 24:00. Cada actividad es un
+     bloque proporcional a su intervalo, coloreado por ciudad; las opcionales van con borde
+     punteado y las reservas sin actividad se muestran como marcas. Los choques se marcan en
+     rojo con ⚠. Al tocar un bloque se abre la actividad.
+   - **Lista:** días agrupados por ciudad, con las opcionales diferenciadas y el día actual
+     resaltado.
+   - Cabecera con el contador **"⚠ N choques"**; al tocarlo se salta al primero.
+   - Botones ＋ actividad, ＋ lugar, editar y eliminar.
+   - **Aviso al guardar:** si una actividad nueva o editada choca con otra, el formulario lo
+     indica ("Choca con Guatapé desde Medellín, 7:00–18:00") y ofrece **Corregir** o
+     **Guardar de todos modos**. No bloquea el guardado.
 3. **Costos**
    - Tarjetas: presupuesto total, real total, diferencia y por persona (USD y moneda de casa).
    - **Gráfico 1:** presupuesto contra real por categoría (barras agrupadas).
@@ -268,6 +305,9 @@ Eliminar pide confirmación.
   - `compute`: efectivo restante = $50,38; totales y diferencia solo con reales;
     presupuesto contra real por categoría; acumulado por día; "hoy" antes, durante
     (29/9 con reserva) y después del viaje; conversor.
+  - `compute` (horarios): intervalo por franja, por horas y por reserva vinculada; choque
+    Mañana-Tarde contra Tarde; bordes que se tocan no chocan; reserva sin vincular dentro de
+    una actividad; Hora fin ≤ Hora inicio → ⚠; datos actuales → 0 choques.
   - `queue`: aplicación optimista; envío en orden; reintento con el mismo `opId` sin duplicar;
     reescritura de ID temporal → definitivo; "no existe" → ⚠. Se prueba contra un
     **script simulado en memoria**.
@@ -295,10 +335,11 @@ paso deje algo útil funcionando:
 1. Migración + `doGet` + lectura, pantalla Hoy y conversor.
 2. Edición de Costos (`doPost` + formularios).
 3. Cola sin conexión.
-4. Edición de Itinerario, Lugares y Reservas.
-5. Gráficos.
+4. Edición de Itinerario, Lugares y Reservas, con aviso de choques al guardar.
+5. Timeline del itinerario.
+6. Gráficos.
 
 ## Fuera de alcance (Fase 1)
 
-Selector de viajes y creación desde plantilla, timeline visual, comparación entre viajes,
+Selector de viajes y creación desde plantilla, comparación entre viajes,
 gasto por ciudad, notificaciones, login con Google y varios usuarios editando a la vez.
