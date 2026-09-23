@@ -71,3 +71,76 @@ function horaDesdeTexto(texto) {
   if (/a\.?\s?m/i.test(s) && h === 12) h = 0;
   return h + ':' + m[2];
 }
+
+const CATEGORIAS_PROPUESTAS = {
+  Transporte: ['vuelos', 'vuelo interno', 'transporte aeropuerto', 'metro cable arvi', 'metro medellin comuna 13', 'metro medellin arvi'],
+  Hospedaje: ['bogota hospedaje', 'medellin hospedaje'],
+  Comida: ['comida'],
+  Tours: ['zipaquira y lago guatavita', 'guatape desde medellin', 'tiquete catedral de sal', 'entrada parque nacional'],
+  Compras: ['compras', 'compras varias'],
+};
+
+function categoriaPropuesta(detalle) {
+  const n = normalizar(detalle);
+  for (const cat of Object.keys(CATEGORIAS_PROPUESTAS)) if (CATEGORIAS_PROPUESTAS[cat].indexOf(n) >= 0) return cat;
+  return 'Otros';
+}
+
+function migrarLibro(libro, enlacesReservas, datos) {
+  const casa = datos.monedaCasa;
+  const celda = (f, i) => (i >= 0 && f[i] !== undefined && f[i] !== null ? f[i] : '');
+
+  // Costos: separa efectivo inicial, sobrante y tipos de cambio; agrega columnas nuevas.
+  const co = libro.Costos && libro.Costos.length ? libro.Costos : [['Detalle']];
+  const hc = co[0].map(String);
+  const c = n => indiceColumna(hc, n);
+  const iDet = c('Detalle'), iEf = c('Efectivo?'), iUsd = c('Monto Dos Personas'), iCrc = c('Colones'), iPp = c('Por Persona'), iTc = c('Tipo de Cambio');
+  let efectivo = '';
+  const tasas = [];
+  const gastos = [];
+  co.slice(1).forEach(f => {
+    if (iTc >= 0 && String(celda(f, iTc)).trim() !== '' && celda(f, iTc + 1) !== '') tasas.push([String(f[iTc]).trim(), f[iTc + 1]]);
+    const ef = normalizar(celda(f, iEf));
+    if (ef === 'inicio') { efectivo = celda(f, iUsd); return; }
+    if (ef === 'total' || String(celda(f, iDet)).trim() === '') return;
+    gastos.push(f);
+  });
+  const costos = [['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto ' + casa, 'Real USD', 'Real ' + casa, 'Por Persona']]
+    .concat(gastos.map((f, i) => [
+      i + 1, celda(f, iDet), categoriaPropuesta(celda(f, iDet)), '', normalizar(celda(f, iEf)) === 'si' ? 'Si' : '',
+      celda(f, iUsd), celda(f, iCrc), '', '', celda(f, iPp),
+    ]));
+  const config = [['Clave', 'Valor'], ['Nombre del viaje', datos.nombre], ['Personas', datos.personas],
+    ['Moneda local', datos.monedaLocal], ['Moneda de casa', casa], ['Efectivo inicial (USD)', efectivo]].concat(tasas);
+
+  // Itinerario: ID al inicio, Hora inicio y Hora fin después de Tiempo.
+  const it = libro.Itinerario && libro.Itinerario.length ? libro.Itinerario : [['Fechas', 'Tiempo', 'Ciudad', 'Actividad', 'Obligatorio/Opcional']];
+  const hi = it[0].map(String);
+  const iT = indiceColumna(hi, 'Tiempo');
+  const pos = iT >= 0 ? iT + 1 : hi.length;
+  const partir = f => { const a = hi.map((_, i) => celda(f, i)); return a.slice(0, pos).concat(['', ''], a.slice(pos)); };
+  const itinerario = [['ID'].concat(hi.slice(0, pos), ['Hora inicio', 'Hora fin'], hi.slice(pos))]
+    .concat(it.slice(1).filter(f => !filaVacia(f)).map((f, i) => [i + 1].concat(partir(f))));
+
+  // Reservas: ID, Enlace (hipervínculo original) y Actividad ID (misma fecha y mismo nombre).
+  const re = libro.Reservas && libro.Reservas.length ? libro.Reservas : [['Tour', 'Fecha y hora', 'Recogida']];
+  const hr = re[0].map(String);
+  const iTour = indiceColumna(hr, 'Tour'), iFh = indiceColumna(hr, 'Fecha y hora');
+  const iAct = indiceColumna(itinerario[0], 'Actividad'), iFec = indiceColumna(itinerario[0], 'Fechas');
+  const reservas = [['ID'].concat(hr, ['Enlace', 'Actividad ID'])];
+  re.forEach((f, j) => {
+    if (j === 0 || filaVacia(f)) return;
+    const tour = normalizar(celda(f, iTour)), fecha = fechaAClave(celda(f, iFh));
+    const coinciden = itinerario.slice(1).filter(a => normalizar(a[iAct]) === tour && fechaAClave(a[iFec]) === fecha);
+    reservas.push([reservas.length].concat(hr.map((_, i) => celda(f, i)), [enlacesReservas[j] || '', coinciden.length === 1 ? coinciden[0][0] : '']));
+  });
+
+  return {
+    Config: config,
+    Costos: costos,
+    Itinerario: itinerario,
+    Lugares: [['ID', 'Actividad ID', 'Lugar', 'Dirección / Mapa', 'Notas', 'Hecho']],
+    Reservas: reservas,
+    _Registro: [['opId', 'fecha', 'resultado']],
+  };
+}

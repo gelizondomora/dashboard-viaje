@@ -106,3 +106,50 @@ pruebaLogica('horaDesdeTexto lee lo que muestra la hoja', () => {
   igualL(horaDesdeTexto('12:05 a. m.'), '0:05');
   igualL(horaDesdeTexto(''), '');
 });
+
+function libroMigrado() { return migrarLibro(LIBRO_ORIGINAL, ENLACES_ORIGINALES, DATOS_EJEMPLO); }
+
+pruebaLogica('migrar: Config con efectivo inicial y tipos de cambio', () => {
+  igualL(libroMigrado().Config, [
+    ['Clave', 'Valor'], ['Nombre del viaje', 'Colombia 2026'], ['Personas', 2], ['Moneda local', 'COP'],
+    ['Moneda de casa', 'CRC'], ['Efectivo inicial (USD)', 200], ['COP-CRC', 0.14], ['COP-USD', 0.00031], ['USD-CRC', 455],
+  ]);
+});
+pruebaLogica('migrar: Costos sin filas Efectivo/Sobrante y con columnas nuevas', () => {
+  const c = libroMigrado().Costos;
+  igualL(c[0], ['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto CRC', 'Real USD', 'Real CRC', 'Por Persona']);
+  igualL(c.length, 17);
+  igualL(c[1], [1, 'Vuelos', 'Transporte', '', '', 696.92, 317098.6, '', '', 158549.3]);
+  igualL(c[2], [2, 'Comida', 'Comida', '', '', '', 150000, '', '', 75000]);
+  igualL(c[9], [9, 'Compras Varias', 'Compras', '', 'Si', 50, 22750, '', '', 11375]);
+  igualL(c.some(f => f[1] === 'Efectivo' || f[1] === 'Sobrante'), false);
+});
+pruebaLogica('migrar: categorías propuestas', () => {
+  const cat = {};
+  libroMigrado().Costos.slice(1).forEach(f => { cat[f[1]] = f[2]; });
+  igualL(cat, {
+    'Vuelos': 'Transporte', 'Comida': 'Comida', 'Medellin Hospedaje': 'Hospedaje', 'Compras': 'Compras',
+    'Bogota Hospedaje': 'Hospedaje', 'Vuelo interno': 'Transporte', 'Zipaquirá y lago Guatavita': 'Tours',
+    'Guatapé desde Medellín': 'Tours', 'Compras Varias': 'Compras', 'Tiquete Catedral de Sal': 'Tours',
+    'Metro Cable Arvi': 'Transporte', 'Entrada Parque Nacional': 'Tours', 'Transporte Aeropuerto': 'Transporte',
+    'Metro Medellin Comuna 13': 'Transporte', 'Metro Medellin Arvi': 'Transporte',
+  });
+});
+pruebaLogica('migrar: Itinerario con ID y horas', () => {
+  const it = libroMigrado().Itinerario;
+  igualL(it[0], ['ID', 'Fechas', 'Tiempo', 'Hora inicio', 'Hora fin', 'Ciudad', 'Actividad', 'Obligatorio/Opcional']);
+  igualL(it.length, 14);
+  igualL(it[4], [4, '2026-09-29', 'Mañana-Tarde', '', '', 'Bogota', 'Zipaquirá y Lago Guatavita', 'Obligatorio']);
+});
+pruebaLogica('migrar: Reservas con enlace y actividad vinculada', () => {
+  igualL(libroMigrado().Reservas, [
+    ['ID', 'Tour', 'Fecha y hora', 'Recogida', 'Enlace', 'Actividad ID'],
+    [1, 'Guatapé desde Medellín', 'Viernes, 2 de octubre de 2026, 7:00', 'Parque del Poblado, frente a la iglesia', ENLACES_ORIGINALES[1], 8],
+    [2, 'Zipaquirá y lago Guatavita', 'Martes, 29 de septiembre de 2026, 8:00', 'Hotel', ENLACES_ORIGINALES[2], 4],
+  ]);
+});
+pruebaLogica('migrar: pestañas nuevas vacías', () => {
+  const l = libroMigrado();
+  igualL(l.Lugares, [['ID', 'Actividad ID', 'Lugar', 'Dirección / Mapa', 'Notas', 'Hecho']]);
+  igualL(l._Registro, [['opId', 'fecha', 'resultado']]);
+});
