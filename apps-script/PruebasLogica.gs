@@ -153,3 +153,62 @@ pruebaLogica('migrar: pestañas nuevas vacías', () => {
   igualL(l.Lugares, [['ID', 'Actividad ID', 'Lugar', 'Dirección / Mapa', 'Notas', 'Hecho']]);
   igualL(l._Registro, [['opId', 'fecha', 'resultado']]);
 });
+
+pruebaLogica('op: agregar Lugares asigna ID y ordena columnas', () => {
+  const r = planOperacion(libroMigrado(), { opId: 'a', op: 'agregar', tabla: 'Lugares', id: -1, valores: { 'Actividad ID': 5, 'Lugar': 'Tienda Vélez', 'Notas': 'chaqueta' } });
+  igualL(r, { ok: true, id: 1, acciones: [{ tipo: 'agregarFila', tabla: 'Lugares', valores: [1, 5, 'Tienda Vélez', '', 'chaqueta', ''] }] });
+});
+pruebaLogica('op: modificar acepta encabezados en minúsculas', () => {
+  igualL(planOperacion(libroMigrado(), { opId: 'b', op: 'modificar', tabla: 'Costos', id: 2, valores: { 'real crc': 140000 } }),
+    { ok: true, id: 2, acciones: [{ tipo: 'poner', tabla: 'Costos', fila: 2, col: 8, valor: 140000 }] });
+});
+pruebaLogica('op: ID inexistente da "no existe"', () => {
+  igualL(planOperacion(libroMigrado(), { opId: 'c', op: 'modificar', tabla: 'Costos', id: 99, valores: { 'Real USD': 1 } }), { ok: false, error: 'no existe' });
+});
+pruebaLogica('op: columna o tabla desconocida', () => {
+  igualL(planOperacion(libroMigrado(), { opId: 'd', op: 'modificar', tabla: 'Costos', id: 1, valores: { 'Color': 'rojo' } }), { ok: false, error: 'columna desconocida: Color' });
+  igualL(planOperacion(libroMigrado(), { opId: 'e', op: 'agregar', tabla: 'Config', valores: {} }), { ok: false, error: 'tabla desconocida: Config' });
+});
+pruebaLogica('op: eliminar actividad borra sus lugares y desvincula reservas', () => {
+  const base = libroMigrado();
+  const conLugar = ejecutarAcciones(base, planOperacion(base, { opId: 'f', op: 'agregar', tabla: 'Lugares', valores: { 'Actividad ID': 8, 'Lugar': 'X' } }).acciones);
+  igualL(planOperacion(conLugar, { opId: 'g', op: 'eliminar', tabla: 'Itinerario', id: 8 }).acciones, [
+    { tipo: 'poner', tabla: 'Reservas', fila: 1, col: 5, valor: '' },
+    { tipo: 'borrarFila', tabla: 'Lugares', fila: 1 },
+    { tipo: 'borrarFila', tabla: 'Itinerario', fila: 8 },
+  ]);
+});
+pruebaLogica('op: ejecutarAcciones no modifica el original', () => {
+  const l = libroMigrado();
+  const antes = JSON.stringify(l);
+  const n = ejecutarAcciones(l, [{ tipo: 'poner', tabla: 'Costos', fila: 2, col: 8, valor: 140000 }, { tipo: 'borrarFila', tabla: 'Costos', fila: 1 }]);
+  igualL([n.Costos[1][1], n.Costos[1][8], n.Costos.length], ['Comida', 140000, 16]);
+  igualL(JSON.stringify(l), antes);
+});
+function opsConTemporal() {
+  return [
+    { opId: 'a', op: 'agregar', tabla: 'Itinerario', id: -1, valores: { 'Fechas': '2026-10-01', 'Tiempo': 'Noche', 'Ciudad': 'Medellin', 'Actividad': 'Cena' } },
+    { opId: 'b', op: 'agregar', tabla: 'Lugares', id: -2, valores: { 'Actividad ID': -1, 'Lugar': 'Carmen' } },
+  ];
+}
+pruebaLogica('lote: resuelve IDs temporales dentro del lote', () => {
+  const r = procesarLote(libroMigrado(), opsConTemporal(), 'AHORA');
+  igualL(r.resultados, [{ opId: 'a', ok: true, id: 14 }, { opId: 'b', ok: true, id: 1 }]);
+  igualL(r.libro.Lugares[1], [1, 14, 'Carmen', '', '', '']);
+  igualL(r.pasos.length, 2);
+  igualL(r.nuevosRegistros.map(x => x.slice(0, 2)), [['a', 'AHORA'], ['b', 'AHORA']]);
+});
+pruebaLogica('lote: un opId repetido no se aplica dos veces', () => {
+  const r = procesarLote(libroMigrado(), opsConTemporal(), 'AHORA');
+  const libro2 = Object.assign({}, r.libro, { _Registro: r.libro._Registro.concat(r.nuevosRegistros) });
+  const r2 = procesarLote(libro2, opsConTemporal(), 'LUEGO');
+  igualL(r2.resultados, r.resultados);
+  igualL([r2.pasos.length, r2.nuevosRegistros.length, r2.libro.Itinerario.length], [0, 0, 15]);
+});
+pruebaLogica('lote: eliminar y luego modificar lo mismo da "no existe"', () => {
+  const r = procesarLote(libroMigrado(), [
+    { opId: 'x', op: 'eliminar', tabla: 'Costos', id: 3 },
+    { opId: 'y', op: 'modificar', tabla: 'Costos', id: 3, valores: { 'Real USD': 1 } },
+  ], 'AHORA');
+  igualL(r.resultados, [{ opId: 'x', ok: true, id: 3 }, { opId: 'y', ok: false, error: 'no existe' }]);
+});

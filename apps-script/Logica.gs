@@ -144,3 +144,99 @@ function migrarLibro(libro, enlacesReservas, datos) {
     _Registro: [['opId', 'fecha', 'resultado']],
   };
 }
+
+function planOperacion(libro, op) {
+  if (TABLAS_EDITABLES.indexOf(op.tabla) < 0) return { ok: false, error: 'tabla desconocida: ' + op.tabla };
+  const t = libro[op.tabla];
+  if (!t || !t.length) return { ok: false, error: 'la pestaña ' + op.tabla + ' no existe' };
+  const enc = t[0];
+  const iId = indiceColumna(enc, 'ID');
+  const valores = op.valores || {};
+  const cols = {};
+  const claves = Object.keys(valores);
+  for (let k = 0; k < claves.length; k++) {
+    const i = indiceColumna(enc, claves[k]);
+    if (i < 0 || i === iId) return { ok: false, error: 'columna desconocida: ' + claves[k] };
+    cols[i] = valores[claves[k]];
+  }
+  if (op.op === 'agregar') {
+    const id = siguienteId(t);
+    return { ok: true, id: id, acciones: [{ tipo: 'agregarFila', tabla: op.tabla, valores: enc.map((_, i) => (i === iId ? id : (i in cols ? cols[i] : ''))) }] };
+  }
+  const fila = buscarFila(t, op.id);
+  if (fila < 0) return { ok: false, error: 'no existe' };
+  if (op.op === 'modificar') {
+    return { ok: true, id: Number(op.id), acciones: Object.keys(cols).map(i => ({ tipo: 'poner', tabla: op.tabla, fila: fila, col: Number(i), valor: cols[i] })) };
+  }
+  if (op.op === 'eliminar') {
+    const acciones = [];
+    if (op.tabla === 'Itinerario') {
+      const vinculada = (r, ia) => ia >= 0 && r[ia] !== '' && Number(r[ia]) === Number(op.id);
+      const res = libro.Reservas;
+      if (res && res.length) {
+        const ia = indiceColumna(res[0], 'Actividad ID');
+        res.forEach((r, j) => { if (j > 0 && vinculada(r, ia)) acciones.push({ tipo: 'poner', tabla: 'Reservas', fila: j, col: ia, valor: '' }); });
+      }
+      const lug = libro.Lugares;
+      if (lug && lug.length) {
+        const ia = indiceColumna(lug[0], 'Actividad ID');
+        const borrar = [];
+        lug.forEach((r, j) => { if (j > 0 && vinculada(r, ia)) borrar.push(j); });
+        borrar.sort((a, b) => b - a).forEach(j => acciones.push({ tipo: 'borrarFila', tabla: 'Lugares', fila: j }));
+      }
+    }
+    acciones.push({ tipo: 'borrarFila', tabla: op.tabla, fila: fila });
+    return { ok: true, id: Number(op.id), acciones: acciones };
+  }
+  return { ok: false, error: 'operación desconocida: ' + op.op };
+}
+
+function ejecutarAcciones(libro, acciones) {
+  const n = {};
+  Object.keys(libro).forEach(k => { n[k] = libro[k].map(f => f.slice()); });
+  acciones.forEach(a => {
+    if (a.tipo === 'poner') n[a.tabla][a.fila][a.col] = a.valor;
+    else if (a.tipo === 'borrarFila') n[a.tabla].splice(a.fila, 1);
+    else if (a.tipo === 'agregarFila') n[a.tabla].push(a.valores.slice());
+  });
+  return n;
+}
+
+function resolverTemporales(op, mapa) {
+  const r = Object.assign({}, op, { valores: Object.assign({}, op.valores || {}) });
+  const clave = (tabla, id) => tabla + ':' + Number(id);
+  if (Number(r.id) < 0 && mapa[clave(r.tabla, r.id)] !== undefined) r.id = mapa[clave(r.tabla, r.id)];
+  Object.keys(r.valores).forEach(k => {
+    const v = r.valores[k];
+    if (normalizar(k) === 'actividad id' && v !== '' && Number(v) < 0 && mapa[clave('Itinerario', v)] !== undefined) r.valores[k] = mapa[clave('Itinerario', v)];
+  });
+  return r;
+}
+
+function procesarLote(libro, ops, ahora) {
+  let actual = libro;
+  const resultados = [], pasos = [], nuevosRegistros = [], mapa = {};
+  const registro = {};
+  (libro._Registro || []).slice(1).forEach(f => { if (f[0] !== '') registro[f[0]] = f[2]; });
+  ops.forEach(original => {
+    const temporal = original.op === 'agregar' && Number(original.id) < 0 ? original.tabla + ':' + Number(original.id) : null;
+    if (registro[original.opId] !== undefined) {
+      const previo = JSON.parse(registro[original.opId]);
+      if (previo.ok && temporal) mapa[temporal] = previo.id;
+      resultados.push(previo);
+      return;
+    }
+    const op = resolverTemporales(original, mapa);
+    const plan = planOperacion(actual, op);
+    const res = plan.ok ? { opId: op.opId, ok: true, id: plan.id } : { opId: op.opId, ok: false, error: plan.error };
+    if (plan.ok) {
+      pasos.push(plan.acciones);
+      actual = ejecutarAcciones(actual, plan.acciones);
+      if (temporal) mapa[temporal] = plan.id;
+    }
+    registro[op.opId] = JSON.stringify(res);
+    nuevosRegistros.push([op.opId, ahora, JSON.stringify(res)]);
+    resultados.push(res);
+  });
+  return { libro: actual, resultados: resultados, pasos: pasos, nuevosRegistros: nuevosRegistros };
+}
