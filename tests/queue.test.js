@@ -1,6 +1,6 @@
 import { prueba, igual } from './t.js';
 import { parsearDatos } from '../js/parse.js';
-import { crearOp, idTemporal, aplicarPendientes, consolidar, sincronizar, aplicarReemplazos, reintentar, descartar } from '../js/queue.js';
+import { crearOp, idTemporal, aplicarPendientes, consolidar, sincronizar, aplicarReemplazos, reintentar, descartar, crearSincronizador } from '../js/queue.js';
 import { rawEjemplo, servidorEjemplo, conFila } from './fixtures.js';
 
 const fijo = id => () => id;
@@ -79,4 +79,16 @@ prueba('cola: sin pendientes no envía nada', async () => {
   let llamadas = 0;
   const r = await sincronizar([], async () => { llamadas++; return []; });
   igual([r.enviado, llamadas], [false, 0]);
+});
+prueba('cola: una llamada durante una sincronización provoca otra vuelta', async () => {
+  let vueltas = 0, soltar;
+  const primera = new Promise(r => { soltar = r; });
+  const sinc = crearSincronizador(async () => { vueltas++; if (vueltas === 1) await primera; });
+  const a = sinc();
+  const b = sinc();
+  soltar();
+  await a; await b;
+  igual(vueltas, 2);
+  await sinc();
+  igual(vueltas, 3);
 });

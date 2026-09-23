@@ -1,4 +1,4 @@
-import { esc, hora, fechaLarga, marcas } from './formato.js';
+import { esc, hora, fechaLarga, marcas, urlSegura } from './formato.js';
 
 export function tarjetaReserva(r, { editable = false } = {}) {
   return `<article class="reserva${r.pendiente ? ' pendiente' : ''}">
@@ -6,7 +6,7 @@ export function tarjetaReserva(r, { editable = false } = {}) {
       ${editable ? `<button class="icono" data-accion="editar-reserva" data-id="${r.id}" aria-label="Editar">✎</button>` : ''}</header>
     <h3>🎟 ${esc(r.tour)}</h3>
     ${r.recogida ? `<p>Recogida: ${esc(r.recogida)}</p>` : ''}
-    ${r.enlace ? `<a class="boton" href="${esc(r.enlace)}" target="_blank" rel="noopener">Abrir reserva</a>` : ''}
+    ${urlSegura(r.enlace) ? `<a class="boton" href="${esc(urlSegura(r.enlace))}" target="_blank" rel="noopener">Abrir reserva</a>` : ''}
   </article>`;
 }
 

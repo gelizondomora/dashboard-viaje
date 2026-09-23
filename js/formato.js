@@ -37,3 +37,5 @@ export function marcas(x) {
     + (x.errorSync ? ` <span class="marca error" title="${esc(x.errorSync)}">⚠</span>` : '')
     + (x.error ? ` <span class="marca error">⚠ ${esc(x.error)}</span>` : '');
 }
+
+export const urlSegura = u => (/^https?:\/\//i.test(String(u ?? '').trim()) ? String(u).trim() : '');

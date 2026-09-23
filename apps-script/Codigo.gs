@@ -1,13 +1,28 @@
 /* Pegamento con Google Sheets. La lógica está en Logica.gs; las pruebas en PruebasLogica.gs (ejecuta probarTodo). */
 const DATOS_VIAJE = { nombre: 'Colombia 2026', personas: 2, monedaLocal: 'COP', monedaCasa: 'CRC' };
-const HOJAS_LIBRO = ['Config', 'Costos', 'Itinerario', 'Lugares', 'Reservas', '_Registro'];
+const HOJAS_LIBRO = ['Config', 'Costos', 'Itinerario', 'Lugares', 'Reservas', '_Registro', '_IDs'];
 
 function doGet(e) {
   return responder_(() => {
     const p = (e && e.parameter) || {};
     autorizar_(p.clave);
     if (p.op !== 'leer') throw new Error('operación desconocida');
-    const libro = leerLibro_(SpreadsheetApp.getActive());
+    const ss = SpreadsheetApp.getActive();
+    let libro = leerLibro_(ss);
+    const faltantes = asignarIdsFaltantes(libro);
+    if (faltantes.length) {
+      // Filas agregadas a mano en la hoja: se les asigna ID bajo el candado para poder editarlas.
+      const lock = LockService.getScriptLock();
+      lock.waitLock(20000);
+      try {
+        libro = leerLibro_(ss);
+        const acciones = asignarIdsFaltantes(libro);
+        ejecutarEnHoja_(ss, acciones);
+        libro = ejecutarAcciones(libro, acciones);
+      } finally {
+        lock.releaseLock();
+      }
+    }
     const tablas = {};
     TABLAS_EDITABLES.forEach(n => { tablas[n] = tablaAObjetos(libro[n]); });
     return { ok: true, leidoEn: new Date().toISOString(), config: configComoObjeto(libro.Config), tablas: tablas };
@@ -50,6 +65,7 @@ function prepararHoja() {
   const nuevo = migrarLibro(libro, enlaces, DATOS_VIAJE);
   HOJAS_LIBRO.forEach(n => escribirHoja_(ss, n, nuevo[n]));
   ss.getSheetByName('_Registro').hideSheet();
+  ss.getSheetByName('_IDs').hideSheet();
   Logger.log('Hoja preparada. Respaldo: ' + respaldo.getUrl());
 }
 
@@ -88,13 +104,13 @@ function ejecutarEnHoja_(ss, acciones) {
   acciones.forEach(a => {
     const h = ss.getSheetByName(a.tabla);
     if (a.tipo === 'poner') {
-      h.getRange(a.fila + 1, a.col + 1).setValue(a.valor);
+      h.getRange(a.fila + 1, a.col + 1).setValue(valorParaHoja(a.valor));
     } else if (a.tipo === 'borrarFila') {
       // Sheets no permite borrar la última fila no congelada: se agrega una vacía antes.
       if (h.getMaxRows() <= a.fila + 1) h.insertRowAfter(h.getMaxRows());
       h.deleteRow(a.fila + 1);
     } else if (a.tipo === 'agregarFila') {
-      h.appendRow(a.valores);
+      h.appendRow(a.valores.map(valorParaHoja));
     }
   });
 }

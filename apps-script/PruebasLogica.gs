@@ -156,7 +156,10 @@ pruebaLogica('migrar: pestañas nuevas vacías', () => {
 
 pruebaLogica('op: agregar Lugares asigna ID y ordena columnas', () => {
   const r = planOperacion(libroMigrado(), { opId: 'a', op: 'agregar', tabla: 'Lugares', id: -1, valores: { 'Actividad ID': 5, 'Lugar': 'Tienda Vélez', 'Notas': 'chaqueta' } });
-  igualL(r, { ok: true, id: 1, acciones: [{ tipo: 'agregarFila', tabla: 'Lugares', valores: [1, 5, 'Tienda Vélez', '', 'chaqueta', ''] }] });
+  igualL(r, { ok: true, id: 1, acciones: [
+    { tipo: 'poner', tabla: '_IDs', fila: 3, col: 1, valor: 1 },
+    { tipo: 'agregarFila', tabla: 'Lugares', valores: [1, 5, 'Tienda Vélez', '', 'chaqueta', ''] },
+  ] });
 });
 pruebaLogica('op: modificar acepta encabezados en minúsculas', () => {
   igualL(planOperacion(libroMigrado(), { opId: 'b', op: 'modificar', tabla: 'Costos', id: 2, valores: { 'real crc': 140000 } }),
@@ -211,4 +214,26 @@ pruebaLogica('lote: eliminar y luego modificar lo mismo da "no existe"', () => {
     { opId: 'y', op: 'modificar', tabla: 'Costos', id: 3, valores: { 'Real USD': 1 } },
   ], 'AHORA');
   igualL(r.resultados, [{ opId: 'x', ok: true, id: 3 }, { opId: 'y', ok: false, error: 'no existe' }]);
+});
+
+pruebaLogica('ids: la migración guarda el último ID de cada pestaña', () => {
+  igualL(libroMigrado()._IDs, [['Tabla', 'Ultimo ID'], ['Costos', 16], ['Itinerario', 13], ['Lugares', 0], ['Reservas', 2]]);
+});
+pruebaLogica('ids: no se reutilizan tras borrar la última fila a mano', () => {
+  const base = libroMigrado();
+  const sinUltima = ejecutarAcciones(base, [{ tipo: 'borrarFila', tabla: 'Costos', fila: 16 }]);
+  const r = procesarLote(sinUltima, [{ opId: 'n', op: 'agregar', tabla: 'Costos', id: -1, valores: { 'Detalle': 'Taxi' } }], 'AHORA');
+  igualL(r.resultados, [{ opId: 'n', ok: true, id: 17 }]);
+  igualL(r.libro._IDs[1], ['Costos', 17]);
+});
+pruebaLogica('ids: filas agregadas a mano reciben un ID', () => {
+  const base = libroMigrado();
+  base.Lugares = base.Lugares.concat([['', 5, 'Tienda', '', '', '']]);
+  const n = ejecutarAcciones(base, asignarIdsFaltantes(base));
+  igualL([n.Lugares[1][0], n._IDs[3]], [1, ['Lugares', 1]]);
+  igualL(asignarIdsFaltantes(n), []);
+});
+pruebaLogica('valorParaHoja protege el texto que parece fórmula', () => {
+  igualL([valorParaHoja('+57 310 555'), valorParaHoja('=SUM(A1)'), valorParaHoja('-x'), valorParaHoja('@a'), valorParaHoja(5), valorParaHoja('2026-09-27'), valorParaHoja('7:00'), valorParaHoja('')],
+    ["'+57 310 555", "'=SUM(A1)", "'-x", "'@a", 5, '2026-09-27', '7:00', '']);
 });

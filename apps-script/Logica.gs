@@ -142,6 +142,7 @@ function migrarLibro(libro, enlacesReservas, datos) {
     Lugares: [['ID', 'Actividad ID', 'Lugar', 'Dirección / Mapa', 'Notas', 'Hecho']],
     Reservas: reservas,
     _Registro: [['opId', 'fecha', 'resultado']],
+    _IDs: [['Tabla', 'Ultimo ID'], ['Costos', costos.length - 1], ['Itinerario', itinerario.length - 1], ['Lugares', 0], ['Reservas', reservas.length - 1]],
   };
 }
 
@@ -160,8 +161,11 @@ function planOperacion(libro, op) {
     cols[i] = valores[claves[k]];
   }
   if (op.op === 'agregar') {
-    const id = siguienteId(t);
-    return { ok: true, id: id, acciones: [{ tipo: 'agregarFila', tabla: op.tabla, valores: enc.map((_, i) => (i === iId ? id : (i in cols ? cols[i] : ''))) }] };
+    const id = proximoId(libro, op.tabla);
+    const acciones = [{ tipo: 'agregarFila', tabla: op.tabla, valores: enc.map((_, i) => (i === iId ? id : (i in cols ? cols[i] : ''))) }];
+    const contador = accionContador(libro, op.tabla, id);
+    if (contador) acciones.unshift(contador);
+    return { ok: true, id: id, acciones: acciones };
   }
   const fila = buscarFila(t, op.id);
   if (fila < 0) return { ok: false, error: 'no existe' };
@@ -239,4 +243,48 @@ function procesarLote(libro, ops, ahora) {
     resultados.push(res);
   });
   return { libro: actual, resultados: resultados, pasos: pasos, nuevosRegistros: nuevosRegistros };
+}
+
+/* Último ID entregado por pestaña (pestaña oculta _IDs): evita reutilizar IDs de filas borradas a mano. */
+function ultimoId(libro, tabla) {
+  const t = libro._IDs;
+  if (!t) return 0;
+  for (let j = 1; j < t.length; j++) if (normalizar(t[j][0]) === normalizar(tabla)) return Number(t[j][1]) || 0;
+  return 0;
+}
+
+function proximoId(libro, tabla) {
+  return Math.max(siguienteId(libro[tabla]), ultimoId(libro, tabla) + 1);
+}
+
+function accionContador(libro, tabla, id) {
+  const t = libro._IDs;
+  if (!t) return null;
+  for (let j = 1; j < t.length; j++) if (normalizar(t[j][0]) === normalizar(tabla)) return { tipo: 'poner', tabla: '_IDs', fila: j, col: 1, valor: id };
+  return { tipo: 'agregarFila', tabla: '_IDs', valores: [tabla, id] };
+}
+
+/* Asigna ID a las filas agregadas a mano en la hoja (sin ID). */
+function asignarIdsFaltantes(libro) {
+  const acciones = [];
+  TABLAS_EDITABLES.forEach(tabla => {
+    const t = libro[tabla];
+    if (!t || !t.length) return;
+    const iId = indiceColumna(t[0], 'ID');
+    if (iId < 0) return;
+    let siguiente = proximoId(libro, tabla);
+    t.forEach((f, j) => {
+      if (j === 0 || filaVacia(f) || f[iId] !== '') return;
+      acciones.push({ tipo: 'poner', tabla: tabla, fila: j, col: iId, valor: siguiente });
+      siguiente++;
+    });
+    const contador = siguiente > proximoId(libro, tabla) ? accionContador(libro, tabla, siguiente - 1) : null;
+    if (contador) acciones.push(contador);
+  });
+  return acciones;
+}
+
+/* Sheets interpreta como fórmula el texto que empieza con = + - @; el apóstrofo lo guarda como texto. */
+function valorParaHoja(v) {
+  return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v;
 }

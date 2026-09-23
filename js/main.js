@@ -1,7 +1,7 @@
 import { parsearDatos } from './parse.js';
 import { choques, convertir, hoyISO } from './compute.js';
-import { crearOp, idTemporal, aplicarPendientes, consolidar, sincronizar, aplicarReemplazos, reintentar, descartar } from './queue.js';
-import { crearApi } from './api.js';
+import { crearOp, idTemporal, aplicarPendientes, consolidar, sincronizar, aplicarReemplazos, reintentar, descartar, crearSincronizador } from './queue.js';
+import { crearApi, mensajeError } from './api.js';
 import { crearStore, crearMemoria } from './store.js';
 import { esc, dinero, hace } from './formato.js';
 import { abrirFormulario } from './forms.js';
@@ -88,9 +88,10 @@ function actualizarConversor() {
 }
 
 function manejarError(e) {
-  if (e.autorizacion) { estado.error = 'La clave no es correcta. Revísala en Ajustes.'; abrirAjustes(); }
-  else if (e.configuracion) estado.error = e.message;
-  else { estado.sinConexion = true; if (!estado.raw) estado.error = `No se pudieron cargar los datos (${e.message}).`; }
+  const m = mensajeError(e, !!estado.raw);
+  if (m.tipo === 'clave') { estado.error = m.texto; abrirAjustes(); }
+  else if (m.tipo === 'config') estado.error = m.texto;
+  else { estado.sinConexion = true; if (!estado.raw) estado.error = m.texto; }
 }
 
 async function leerHoja() {
@@ -122,15 +123,16 @@ async function sincronizarCola() {
   }
 }
 
-async function sincronizarYLeer() {
+// Serializado: si se llama mientras corre, vuelve a correr al terminar (así no se queda nada pendiente).
+const sincronizarYLeer = crearSincronizador(async () => {
   await sincronizarCola();
   if (!estado.ops.some(o => o.estado === 'pendiente')) await leerHoja();
   else pintar();
-}
+});
 
 async function encolar(op, tabla, id, valores) {
   const idOp = op === 'agregar' ? idTemporal(estado.raw, estado.ops) : id;
-  estado.ops.push(crearOp(op, tabla, { id: idOp, valores }));
+  estado.ops = [...estado.ops, crearOp(op, tabla, { id: idOp, valores })];
   guardar();
   pintar();
   await sincronizarYLeer();
@@ -172,6 +174,7 @@ document.addEventListener('click', ev => {
   const el = ev.target.closest('[data-accion]');
   if (!el) return;
   const id = Number(el.dataset.id);
+  if (el.dataset.id !== undefined && !Number.isFinite(id)) return; // fila todavía sin ID: se asigna al recargar
   const buscar = lista => lista.find(x => x.id === id);
   switch (el.dataset.accion) {
     case 'recargar': sincronizarYLeer(); break;
@@ -182,7 +185,7 @@ document.addEventListener('click', ev => {
     case 'editar-actividad': editarActividad(vista, buscar(vista.actividades), acciones('Itinerario', id)); break;
     case 'agregar-lugar': editarLugar(vista, Number(el.dataset.actividad), null, acciones('Lugares', null)); break;
     case 'editar-lugar': { const l = buscar(vista.lugares); editarLugar(vista, l.actividadId, l, acciones('Lugares', id)); break; }
-    case 'hecho': { const l = buscar(vista.lugares); encolar('modificar', 'Lugares', id, { 'Hecho': l.hecho ? '' : 'Si' }); break; }
+    case 'hecho': { const l = buscar(vista.lugares); if (!l) break; encolar('modificar', 'Lugares', id, { 'Hecho': l.hecho ? '' : 'Si' }); break; }
     case 'agregar-costo': editarCosto(vista, null, acciones('Costos', null)); break;
     case 'editar-costo': editarCosto(vista, buscar(vista.costos), acciones('Costos', id)); break;
     case 'agregar-reserva': editarReserva(vista, null, acciones('Reservas', null)); break;

@@ -38,3 +38,8 @@ prueba('render: Costos incluye los tres gráficos', () => {
   const c = renderCostos(v(), { filtro: '' });
   for (const id of ['g-categorias', 'g-acumulado', 'g-efectivo']) verdadero(c.includes(`id="${id}"`), `falta ${id}`);
 });
+prueba('render: un enlace javascript: no se muestra', () => {
+  const html = renderReservas(parsearDatos(conValores(rawEjemplo(), 'Reservas', 1, { 'Enlace': 'javascript:alert(1)' })));
+  verdadero(!html.includes('javascript:'), 'se dibujó un enlace javascript:');
+  igual(cuenta(html, 'Abrir reserva'), 1);
+});

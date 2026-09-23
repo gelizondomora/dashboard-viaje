@@ -95,3 +95,16 @@ export async function sincronizar(ops, enviar) {
 
 export const reintentar = (ops, opId) => ops.map(o => (o.opId === opId ? { ...o, estado: 'pendiente', error: null } : o));
 export const descartar = (ops, opId) => ops.filter(o => o.opId !== opId);
+
+/* Ejecuta una tarea sin solaparse: si la llaman mientras corre, corre otra vez al terminar. */
+export function crearSincronizador(tarea) {
+  let enCurso = null;
+  let otraVez = false;
+  return function ejecutar() {
+    if (enCurso) { otraVez = true; return enCurso; }
+    enCurso = (async () => {
+      try { do { otraVez = false; await tarea(); } while (otraVez); } finally { enCurso = null; }
+    })();
+    return enCurso;
+  };
+}

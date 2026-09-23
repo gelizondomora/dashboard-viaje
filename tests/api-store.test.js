@@ -1,5 +1,5 @@
 import { prueba, igual } from './t.js';
-import { crearApi } from '../js/api.js';
+import { crearApi, mensajeError } from '../js/api.js';
 import { crearStore, crearMemoria } from '../js/store.js';
 
 const respuesta = json => Promise.resolve({ ok: true, status: 200, json: async () => json });
@@ -42,4 +42,12 @@ prueba('store: sin almacenamiento disponible no rompe', () => {
   const s = crearStore('k', roto);
   igual(s.cargar(), { raw: null, ops: [], ajustes: { url: '', clave: '' } });
   igual(s.guardar({ raw: null, ops: [], ajustes: {} }), false);
+});
+prueba('api: fallo de red se marca y el mensaje depende de si ya hubo datos', async () => {
+  const api = crearApi({ url: 'u', clave: 'k' }, { fetchFn: () => Promise.reject(new TypeError('Failed to fetch')) });
+  const e = await error(() => api.leer());
+  igual(e.red, true);
+  igual(mensajeError(e, false).tipo, 'config');
+  igual(mensajeError(e, true).tipo, 'sin-conexion');
+  igual(mensajeError(Object.assign(new Error('no autorizado'), { autorizacion: true }), true).tipo, 'clave');
 });
