@@ -223,4 +223,5 @@ async function iniciar() {
   await sincronizarYLeer();
 }
 
+if ('serviceWorker' in navigator && !demo && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 iniciar();
