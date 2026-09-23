@@ -7,5 +7,6 @@ import './compute-horarios.test.js';
 import './api-store.test.js';
 import './queue.test.js';
 import './editores.test.js';
+import './timeline.test.js';
 
 await ejecutar(typeof globalThis.probarTodo === 'function' ? globalThis.probarTodo() : []);
