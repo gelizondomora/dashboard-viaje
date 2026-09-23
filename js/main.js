@@ -11,6 +11,7 @@ import { renderItinerario } from './render-itinerario.js';
 import { renderCostos } from './render-costos.js';
 import { renderReservas } from './render-reservas.js';
 import { pintarGraficos } from './charts.js';
+import { franjaEnPosicion } from './timeline.js';
 
 const params = new URLSearchParams(location.search);
 const demo = params.has('demo');
@@ -182,6 +183,12 @@ document.addEventListener('click', ev => {
     case 'vista-itinerario': estado.vistaItinerario = el.dataset.vista; pintar(); break;
     case 'ir-choque': irAlPrimerChoque(); break;
     case 'agregar-actividad': editarActividad(vista, null, acciones('Itinerario', null)); break;
+    case 'nueva-en-timeline': {
+      const r = el.getBoundingClientRect();
+      const posicion = Math.min(Math.max((ev.clientX - r.left) / r.width, 0), 1);
+      editarActividad(vista, null, acciones('Itinerario', null), { fecha: el.dataset.fecha, franja: franjaEnPosicion(posicion), ciudad: el.dataset.ciudad });
+      break;
+    }
     case 'editar-actividad': editarActividad(vista, buscar(vista.actividades), acciones('Itinerario', id)); break;
     case 'agregar-lugar': editarLugar(vista, Number(el.dataset.actividad), null, acciones('Lugares', null)); break;
     case 'editar-lugar': { const l = buscar(vista.lugares); editarLugar(vista, l.actividadId, l, acciones('Lugares', id)); break; }

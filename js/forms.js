@@ -8,6 +8,15 @@ function campoHtml(c) {
     case 'lista':
       control = `<select id="${id}" name="${c.nombre}">${c.opciones.map(o => `<option value="${esc(o.valor)}"${String(o.valor) === String(v) ? ' selected' : ''}>${esc(o.texto)}</option>`).join('')}</select>`;
       break;
+    case 'lista-otra': {
+      // Lista de valores conocidos + "Otra…", que muestra un campo para escribir uno nuevo.
+      const conocida = c.opciones.includes(v) || (v === '' && c.opciones.length > 0);
+      control = `<select id="${id}" name="${c.nombre}" data-otra="${c.nombre}__otra">`
+        + c.opciones.map(o => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')
+        + `<option value="__otra"${conocida ? '' : ' selected'}>${esc(c.textoOtra ?? 'Otra ciudad…')}</option></select>`
+        + `<input name="${c.nombre}__otra" type="text" placeholder="Escribe el nombre"${conocida ? ' hidden' : ''} value="${conocida ? '' : esc(v)}">`;
+      break;
+    }
     case 'si-no':
       control = `<input type="checkbox" id="${id}" name="${c.nombre}"${v ? ' checked' : ''}>`;
       break;
@@ -33,6 +42,7 @@ function leerCampos(form, campos) {
   for (const c of campos) {
     const el = form.elements[c.nombre];
     if (c.tipo === 'si-no') out[c.nombre] = el.checked;
+    else if (c.tipo === 'lista-otra') out[c.nombre] = el.value === '__otra' ? form.elements[`${c.nombre}__otra`].value.trim() : el.value;
     else if (c.tipo === 'monto') out[c.nombre] = { cantidad: el.value === '' ? '' : Number(el.value), moneda: form.elements[`${c.nombre}__moneda`].value };
     else if (c.tipo === 'numero') out[c.nombre] = el.value === '' ? '' : Number(el.value);
     else out[c.nombre] = el.value.trim();
@@ -60,6 +70,12 @@ export function abrirFormulario({ titulo, campos, onGuardar, onEliminar = null, 
   const reiniciar = () => { confirmado = false; aviso.hidden = true; guardar.textContent = 'Guardar'; };
   const mostrar = html => { aviso.innerHTML = html; aviso.hidden = false; };
   form.addEventListener('input', reiniciar);
+  form.addEventListener('change', ev => {
+    const otra = ev.target.dataset?.otra && form.elements[ev.target.dataset.otra];
+    if (!otra) return;
+    otra.hidden = ev.target.value !== '__otra';
+    if (!otra.hidden) otra.focus();
+  });
   dlg.querySelector('[data-f=cancelar]').onclick = () => dlg.close();
   if (onEliminar) dlg.querySelector('[data-f=eliminar]').onclick = () => { if (confirm('¿Eliminar este elemento?')) { dlg.close(); onEliminar(); } };
   aviso.addEventListener('click', ev => { if (ev.target.dataset.f === 'corregir') { reiniciar(); form.querySelector('input, select, textarea')?.focus(); } });

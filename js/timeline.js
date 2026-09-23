@@ -13,6 +13,12 @@ export function asignarCarriles(bloques) {
   });
 }
 
+// Posición horizontal del clic (0 = 6:00, 1 = 24:00) → franja del formulario.
+export function franjaEnPosicion(p) {
+  const min = INICIO + p * (FIN - INICIO);
+  return min < 720 ? 'Mañana' : min < 1080 ? 'Tarde' : 'Noche';
+}
+
 export function renderTimeline(v, idsChoque) {
   const colores = new Map();
   const color = c => { if (!colores.has(c)) colores.set(c, colores.size % 4); return colores.get(c); };
@@ -34,7 +40,8 @@ export function renderTimeline(v, idsChoque) {
       .filter(r => r.fecha === d.fecha && r.hora !== null && !v.actividades.some(a => a.id === r.actividadId))
       .map(r => `<span class="marca-reserva" style="left:${pct(r.hora)}%" title="${esc(r.tour)} ${hora(r.hora)}">◆</span>`).join('');
     return `<div class="tl-dia"><div class="tl-fecha">${esc(fechaCorta(d.fecha))}<small>${esc(d.ciudad)}</small></div>`
-      + `<div class="tl-pista" style="height:${n * ALTO}rem">${bloques}${reservas}</div></div>`;
+      + `<div class="tl-pista" data-accion="nueva-en-timeline" data-fecha="${esc(d.fecha)}" data-ciudad="${esc(d.ciudad)}" title="Toca un espacio libre para agregar una actividad"`
+      + ` style="height:${n * ALTO}rem">${bloques}${reservas}</div></div>`;
   }).join('');
   const leyenda = [...colores.entries()].map(([c, i]) => `<span class="ley c${i}">${esc(c)}</span>`).join('');
   const sin = sinHorario.length

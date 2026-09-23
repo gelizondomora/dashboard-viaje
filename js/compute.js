@@ -20,10 +20,17 @@ export function totales(v) {
   };
 }
 
+// Disponible = inicial − lo realmente pagado en efectivo. Pronóstico = inicial − (real o, si no hay, presupuesto).
 export function efectivoRestante(v) {
-  const gastado = suma(validos(v).filter(c => c.efectivo), c => c.real || c.presupuesto);
-  const usd = v.efectivoInicialUsd - gastado.usd;
-  return { usd, casa: usd * v.tasas.usdCasa, gastadoUsd: gastado.usd };
+  const enEfectivo = validos(v).filter(c => c.efectivo);
+  const pagado = suma(enEfectivo, c => c.real);
+  const previsto = suma(enEfectivo, c => c.real || c.presupuesto);
+  const usd = v.efectivoInicialUsd - pagado.usd;
+  const pronosticadoUsd = v.efectivoInicialUsd - previsto.usd;
+  return {
+    usd, casa: usd * v.tasas.usdCasa, gastadoUsd: pagado.usd,
+    pronosticadoUsd, pronosticadoCasa: pronosticadoUsd * v.tasas.usdCasa, comprometidoUsd: previsto.usd - pagado.usd,
+  };
 }
 
 export function porCategoria(v) {

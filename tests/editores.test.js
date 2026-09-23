@@ -57,3 +57,21 @@ prueba('formulario: un campo requerido vacío no guarda', () => {
   igual([guardado, dlg.querySelector('.aviso-form').textContent], [null, 'Falta: Detalle']);
   dlg.close();
 });
+prueba('formulario: lista con "Otra…" permite escribir un valor nuevo', () => {
+  let guardado = null;
+  abrirFormulario({ titulo: 'Prueba', campos: [{ nombre: 'ciudad', etiqueta: 'Ciudad', tipo: 'lista-otra', opciones: ['Bogota', 'Medellin'], valor: 'Medellin' }], onGuardar: v => { guardado = v; } });
+  const dlg = document.getElementById('hoja');
+  const form = dlg.querySelector('form');
+  igual([...form.elements.ciudad.options].map(o => o.textContent), ['Bogota', 'Medellin', 'Otra ciudad…']);
+  igual(form.elements.ciudad.value, 'Medellin');
+  form.requestSubmit();
+  igual(guardado, { ciudad: 'Medellin' });
+  abrirFormulario({ titulo: 'Prueba', campos: [{ nombre: 'ciudad', etiqueta: 'Ciudad', tipo: 'lista-otra', opciones: ['Bogota', 'Medellin'], valor: 'Medellin' }], onGuardar: v => { guardado = v; } });
+  const f2 = document.getElementById('hoja').querySelector('form');
+  f2.elements.ciudad.value = '__otra';
+  f2.elements.ciudad.dispatchEvent(new Event('change', { bubbles: true }));
+  igual(f2.elements.ciudad__otra.hidden, false);
+  f2.elements.ciudad__otra.value = ' Cartagena ';
+  f2.requestSubmit();
+  igual(guardado, { ciudad: 'Cartagena' });
+});

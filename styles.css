@@ -84,7 +84,7 @@ dialog#hoja::backdrop { background: rgb(0 0 0 / .45); }
 .tl-dia { display: grid; grid-template-columns: 4.5rem minmax(520px, 1fr); align-items: start; border-top: 1px solid var(--borde); padding: .3rem 0; }
 .tl-fecha { font-size: .8rem; display: flex; flex-direction: column; }
 .tl-fecha small { color: var(--suave); }
-.tl-pista { position: relative; background: repeating-linear-gradient(to right, transparent 0 calc(100% / 6 - 1px), var(--borde) calc(100% / 6 - 1px) calc(100% / 6)); }
+.tl-pista { position: relative; cursor: copy; background: repeating-linear-gradient(to right, transparent 0 calc(100% / 6 - 1px), var(--borde) calc(100% / 6 - 1px) calc(100% / 6)); }
 .bloque { position: absolute; height: 2rem; border-radius: 8px; border: 0; padding: 0 .4rem; font-size: .75rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .bloque.c0, .ley.c0::before { background: var(--c0); }
 .bloque.c1, .ley.c1::before { background: var(--c1); }

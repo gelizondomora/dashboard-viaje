@@ -54,17 +54,18 @@ export function editarCosto(v, costo, { guardar, eliminar }) {
   });
 }
 
-export function editarActividad(v, act, { guardar, eliminar }) {
+// `pre` rellena una actividad nueva (por ejemplo, desde un clic en el timeline): { fecha, franja, ciudad }.
+export function editarActividad(v, act, { guardar, eliminar }, pre = {}) {
   const ciudades = [...new Set(v.actividades.map(a => a.ciudad).filter(Boolean))];
   abrirFormulario({
     titulo: act ? 'Editar actividad' : 'Nueva actividad',
     campos: [
       { nombre: 'actividad', etiqueta: 'Actividad', tipo: 'texto', requerido: true, valor: act?.actividad },
-      { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha', requerido: true, valor: act?.fecha || '' },
-      { nombre: 'franja', etiqueta: 'Franja', tipo: 'lista', opciones: FRANJAS_OPC, valor: act?.franja || 'Mañana' },
+      { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha', requerido: true, valor: act?.fecha || pre.fecha || '' },
+      { nombre: 'franja', etiqueta: 'Franja', tipo: 'lista', opciones: FRANJAS_OPC, valor: act?.franja || pre.franja || 'Mañana' },
       { nombre: 'inicio', etiqueta: 'Hora inicio (opcional)', tipo: 'hora', valor: horaInput(act?.inicio) },
       { nombre: 'fin', etiqueta: 'Hora fin (opcional)', tipo: 'hora', valor: horaInput(act?.fin) },
-      { nombre: 'ciudad', etiqueta: 'Ciudad', tipo: 'texto', sugerencias: ciudades, valor: act?.ciudad || ciudades.at(-1) || '' },
+      { nombre: 'ciudad', etiqueta: 'Ciudad', tipo: 'lista-otra', opciones: ciudades, valor: act?.ciudad || pre.ciudad || ciudades.at(-1) || '' },
       { nombre: 'opcional', etiqueta: 'Opcional', tipo: 'si-no', valor: act?.opcional },
     ],
     validar: f => {

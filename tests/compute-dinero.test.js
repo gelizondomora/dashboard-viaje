@@ -17,14 +17,20 @@ prueba('dinero: la diferencia usa solo filas con real', () => {
   cerca(t.diferencia.usd, 3.08, 0.001);
   igual(t.conReal, 1);
 });
-prueba('dinero: efectivo restante = $50.38', () => {
+prueba('dinero: sin reales el efectivo disponible es el inicial y el pronóstico $50.38', () => {
   const e = efectivoRestante(viaje());
-  cerca(e.usd, 50.38, 0.001);
-  cerca(e.casa, 22922.9, 0.1);
-  cerca(e.gastadoUsd, 149.62, 0.001);
+  igual([e.usd, e.gastadoUsd], [200, 0]);
+  cerca(e.casa, 91000, 0.1);
+  cerca(e.pronosticadoUsd, 50.38, 0.001);
+  cerca(e.pronosticadoCasa, 22922.9, 0.1);
+  cerca(e.comprometidoUsd, 149.62, 0.001);
 });
-prueba('dinero: el efectivo usa el real cuando existe', () => {
-  cerca(efectivoRestante(viaje(conValores(rawEjemplo(), 'Costos', 11, { 'Real USD': 35 }))).usd, 45.76, 0.001);
+prueba('dinero: el disponible descuenta solo lo pagado; el pronóstico usa real o presupuesto', () => {
+  const e = efectivoRestante(viaje(conValores(rawEjemplo(), 'Costos', 11, { 'Real USD': 35 })));
+  cerca(e.usd, 165, 0.001);
+  cerca(e.gastadoUsd, 35, 0.001);
+  cerca(e.pronosticadoUsd, 45.76, 0.001);
+  cerca(e.comprometidoUsd, 119.24, 0.001);
 });
 prueba('dinero: presupuesto por categoría', () => {
   const c = porCategoria(viaje());

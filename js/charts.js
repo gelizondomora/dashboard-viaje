@@ -55,11 +55,15 @@ export function pintarGraficos(v) {
   }
 
   const ef = efectivoRestante(v);
+  const excedido = ef.pronosticadoUsd < 0;
   activos.push(new Chart(document.getElementById('g-efectivo'), {
     type: 'doughnut',
     data: {
-      labels: ['Gastado', ef.usd < 0 ? 'Excedido' : 'Restante'],
-      datasets: [{ data: [r2(Math.min(ef.gastadoUsd, v.efectivoInicialUsd)), r2(Math.abs(ef.usd))], backgroundColor: [css('--c1'), ef.usd < 0 ? css('--alerta') : css('--ok')] }],
+      labels: ['Pagado', 'Por pagar', excedido ? 'Excedido (pronóstico)' : 'Libre (pronóstico)'],
+      datasets: [{
+        data: [r2(ef.gastadoUsd), r2(ef.comprometidoUsd), r2(Math.abs(ef.pronosticadoUsd))],
+        backgroundColor: [css('--c1'), css('--c3'), excedido ? css('--alerta') : css('--ok')],
+      }],
     },
     options: opciones(),
   }));

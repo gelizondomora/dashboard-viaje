@@ -43,3 +43,7 @@ prueba('render: un enlace javascript: no se muestra', () => {
   verdadero(!html.includes('javascript:'), 'se dibujó un enlace javascript:');
   igual(cuenta(html, 'Abrir reserva'), 1);
 });
+prueba('render: Hoy muestra el disponible real y el balance pronosticado', () => {
+  const h = renderHoy(v(), { hoy: '2026-09-29' });
+  verdadero(h.includes('$200.00') && h.includes('Balance pronosticado: $50.38'), 'faltan disponible o pronóstico');
+});
