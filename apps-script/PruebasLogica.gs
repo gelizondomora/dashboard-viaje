@@ -237,3 +237,15 @@ pruebaLogica('valorParaHoja protege el texto que parece fórmula', () => {
   igualL([valorParaHoja('+57 310 555'), valorParaHoja('=SUM(A1)'), valorParaHoja('-x'), valorParaHoja('@a'), valorParaHoja(5), valorParaHoja('2026-09-27'), valorParaHoja('7:00'), valorParaHoja('')],
     ["'+57 310 555", "'=SUM(A1)", "'-x", "'@a", 5, '2026-09-27', '7:00', '']);
 });
+pruebaLogica('migrar: reutiliza una columna Enlace que ya existe', () => {
+  const libro = Object.assign({}, LIBRO_ORIGINAL, { Reservas: [
+    ['Tour', 'Fecha y hora', 'Recogida', 'Enlace'],
+    ['Guatapé desde Medellín', 'Viernes, 2 de octubre de 2026, 7:00', 'Parque del Poblado, frente a la iglesia', 'https://ya-estaba'],
+    ['Zipaquirá y lago Guatavita', 'Martes, 29 de septiembre de 2026, 8:00', 'Hotel', ''],
+  ] });
+  igualL(migrarLibro(libro, ENLACES_ORIGINALES, DATOS_EJEMPLO).Reservas, [
+    ['ID', 'Tour', 'Fecha y hora', 'Recogida', 'Enlace', 'Actividad ID'],
+    [1, 'Guatapé desde Medellín', 'Viernes, 2 de octubre de 2026, 7:00', 'Parque del Poblado, frente a la iglesia', 'https://ya-estaba', 8],
+    [2, 'Zipaquirá y lago Guatavita', 'Martes, 29 de septiembre de 2026, 8:00', 'Hotel', ENLACES_ORIGINALES[2], 4],
+  ]);
+});

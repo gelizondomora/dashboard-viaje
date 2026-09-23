@@ -127,12 +127,16 @@ function migrarLibro(libro, enlacesReservas, datos) {
   const hr = re[0].map(String);
   const iTour = indiceColumna(hr, 'Tour'), iFh = indiceColumna(hr, 'Fecha y hora');
   const iAct = indiceColumna(itinerario[0], 'Actividad'), iFec = indiceColumna(itinerario[0], 'Fechas');
-  const reservas = [['ID'].concat(hr, ['Enlace', 'Actividad ID'])];
+  const iEnl = indiceColumna(hr, 'Enlace');
+  const reservas = [['ID'].concat(hr, iEnl < 0 ? ['Enlace'] : [], ['Actividad ID'])];
   re.forEach((f, j) => {
     if (j === 0 || filaVacia(f)) return;
     const tour = normalizar(celda(f, iTour)), fecha = fechaAClave(celda(f, iFh));
     const coinciden = itinerario.slice(1).filter(a => normalizar(a[iAct]) === tour && fechaAClave(a[iFec]) === fecha);
-    reservas.push([reservas.length].concat(hr.map((_, i) => celda(f, i)), [enlacesReservas[j] || '', coinciden.length === 1 ? coinciden[0][0] : '']));
+    const celdas = hr.map((_, i) => celda(f, i));
+    const enlace = enlacesReservas[j] || '';
+    if (iEnl >= 0 && String(celdas[iEnl]).trim() === '') celdas[iEnl] = enlace;
+    reservas.push([reservas.length].concat(celdas, iEnl < 0 ? [enlace] : [], [coinciden.length === 1 ? coinciden[0][0] : '']));
   });
 
   return {
