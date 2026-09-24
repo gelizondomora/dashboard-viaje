@@ -22,6 +22,7 @@ const estado = {
   pestana: params.get('pestana') || 'hoy',
   vistaItinerario: params.get('vista') || 'lista',
   filtroCategoria: '', conversor: '', sinConexion: false, error: null,
+  partidasAbiertas: new Set(),
 };
 let api = null;
 let sincronizando = false;
@@ -69,7 +70,7 @@ function pintar() {
   } else if (estado.pestana === 'itinerario') {
     c.innerHTML = renderItinerario(vista, { vista: estado.vistaItinerario, choques: choques(vista), hoy: hoy() });
   } else if (estado.pestana === 'costos') {
-    c.innerHTML = renderCostos(vista, { filtro: estado.filtroCategoria });
+    c.innerHTML = renderCostos(vista, { filtro: estado.filtroCategoria, abiertas: estado.partidasAbiertas });
     pintarGraficos(vista);
   } else {
     c.innerHTML = renderReservas(vista);
@@ -195,6 +196,7 @@ document.addEventListener('click', ev => {
     case 'hecho': { const l = buscar(vista.lugares); if (!l) break; encolar('modificar', 'Lugares', id, { 'Hecho': l.hecho ? '' : 'Si' }); break; }
     case 'agregar-costo': editarCosto(vista, null, acciones('Costos', null)); break;
     case 'editar-costo': editarCosto(vista, buscar(vista.costos), acciones('Costos', id)); break;
+    case 'agregar-en-partida': estado.partidasAbiertas.add(id); editarCosto(vista, null, acciones('Costos', null), { partidaId: id }); break;
     case 'agregar-reserva': editarReserva(vista, null, acciones('Reservas', null)); break;
     case 'editar-reserva': editarReserva(vista, buscar(vista.reservas), acciones('Reservas', id)); break;
     case 'reintentar-op': if (!sincronizando) { estado.ops = reintentar(estado.ops, el.dataset.op); guardar(); sincronizarYLeer(); } break;
@@ -235,3 +237,9 @@ async function iniciar() {
 
 if ('serviceWorker' in navigator && !demo && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 iniciar();
+// Recordar qué partidas están desplegadas entre repintados ("toggle" no burbujea: se escucha en captura).
+document.addEventListener('toggle', ev => {
+  const id = Number(ev.target.dataset?.partida);
+  if (!Number.isFinite(id)) return;
+  if (ev.target.open) estado.partidasAbiertas.add(id); else estado.partidasAbiertas.delete(id);
+}, true);

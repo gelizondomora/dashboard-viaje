@@ -6,40 +6,62 @@ const validos = v => v.costos.filter(c => !c.error);
 const suma = (lista, f) => lista.reduce((t, x) => { const m = f(x); return m ? { usd: t.usd + m.usd, casa: t.casa + m.casa } : t; }, { usd: 0, casa: 0 });
 const dividir = (m, n) => ({ usd: m.usd / n, casa: m.casa / n });
 
+// Partidas: un gasto cuyo "Partida ID" apunta a otro gasto sin partida es un hijo que consume ese presupuesto.
+// Devuelve un grupo por gasto de primer nivel: { costo, hijos, real (propio + hijos, o null), restante (o null) }.
+export function costosAgrupados(v) {
+  const cs = validos(v);
+  const porId = new Map(cs.map(c => [c.id, c]));
+  const esHijo = c => c.partidaId !== null && c.partidaId !== c.id && porId.get(c.partidaId)?.partidaId === null;
+  return cs.filter(c => !esHijo(c)).map(c => {
+    const hijos = cs.filter(h => esHijo(h) && h.partidaId === c.id);
+    const conReal = [c, ...hijos].filter(x => x.real);
+    const real = conReal.length ? suma(conReal, x => x.real) : null;
+    const restante = c.presupuesto ? { usd: c.presupuesto.usd - (real?.usd || 0), casa: c.presupuesto.casa - (real?.casa || 0) } : null;
+    return { costo: c, hijos, real, restante };
+  });
+}
+
 export function totales(v) {
   const cs = validos(v);
-  const conReal = cs.filter(c => c.real);
+  const grupos = costosAgrupados(v);
+  const conReal = grupos.filter(g => g.real);
   const presupuesto = suma(cs, c => c.presupuesto);
-  const real = suma(conReal, c => c.real);
-  const planDeReales = suma(conReal, c => c.presupuesto);
+  const real = suma(cs, c => c.real);
+  const planDeReales = suma(conReal, g => g.costo.presupuesto);
   return {
     presupuesto, real,
     diferencia: { usd: real.usd - planDeReales.usd, casa: real.casa - planDeReales.casa },
-    conReal: conReal.length, pendientes: cs.length - conReal.length,
+    conReal: conReal.length, pendientes: grupos.length - conReal.length,
     porPersona: { presupuesto: dividir(presupuesto, v.personas), real: dividir(real, v.personas) },
   };
 }
 
-// Disponible = inicial − lo realmente pagado en efectivo. Pronóstico = inicial − (real o, si no hay, presupuesto).
+// Disponible = inicial − lo realmente pagado en efectivo.
+// Pronóstico = disponible − lo que falta pagar en efectivo: el presupuesto de lo que aún no tiene real
+// y, en una partida con gastos hijos, lo que queda de su presupuesto.
 export function efectivoRestante(v) {
-  const enEfectivo = validos(v).filter(c => c.efectivo);
-  const pagado = suma(enEfectivo, c => c.real);
-  const previsto = suma(enEfectivo, c => c.real || c.presupuesto);
+  const pagado = suma(validos(v).filter(c => c.efectivo), c => c.real);
+  let pendiente = 0;
+  for (const g of costosAgrupados(v)) {
+    if (!g.costo.efectivo) continue;
+    if (g.hijos.length) pendiente += Math.max(0, (g.costo.presupuesto?.usd || 0) - (g.real?.usd || 0));
+    else if (!g.costo.real) pendiente += g.costo.presupuesto?.usd || 0;
+  }
   const usd = v.efectivoInicialUsd - pagado.usd;
-  const pronosticadoUsd = v.efectivoInicialUsd - previsto.usd;
+  const pronosticadoUsd = usd - pendiente;
   return {
     usd, casa: usd * v.tasas.usdCasa, gastadoUsd: pagado.usd,
-    pronosticadoUsd, pronosticadoCasa: pronosticadoUsd * v.tasas.usdCasa, comprometidoUsd: previsto.usd - pagado.usd,
+    pronosticadoUsd, pronosticadoCasa: pronosticadoUsd * v.tasas.usdCasa, comprometidoUsd: pendiente,
   };
 }
 
 export function porCategoria(v) {
   const m = new Map();
-  for (const c of validos(v)) {
-    const k = c.categoria || 'Otros';
+  for (const g of costosAgrupados(v)) {
+    const k = g.costo.categoria || 'Otros';
     const e = m.get(k) || { categoria: k, presupuestoUsd: 0, realUsd: 0 };
-    e.presupuestoUsd += c.presupuesto?.usd || 0;
-    e.realUsd += c.real?.usd || 0;
+    e.presupuestoUsd += g.costo.presupuesto?.usd || 0;
+    e.realUsd += g.real?.usd || 0;
     m.set(k, e);
   }
   const orden = k => { const i = CATEGORIAS.indexOf(k); return i < 0 ? CATEGORIAS.length : i; };

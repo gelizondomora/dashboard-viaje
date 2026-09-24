@@ -105,10 +105,10 @@ function migrarLibro(libro, enlacesReservas, datos) {
     if (ef === 'total' || String(celda(f, iDet)).trim() === '') return;
     gastos.push(f);
   });
-  const costos = [['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto ' + casa, 'Real USD', 'Real ' + casa, 'Por Persona']]
+  const costos = [['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto ' + casa, 'Real USD', 'Real ' + casa, 'Por Persona', 'Partida ID']]
     .concat(gastos.map((f, i) => [
       i + 1, celda(f, iDet), categoriaPropuesta(celda(f, iDet)), '', normalizar(celda(f, iEf)) === 'si' ? 'Si' : '',
-      celda(f, iUsd), celda(f, iCrc), '', '', celda(f, iPp),
+      celda(f, iUsd), celda(f, iCrc), '', '', celda(f, iPp), '',
     ]));
   const config = [['Clave', 'Valor'], ['Nombre del viaje', datos.nombre], ['Personas', datos.personas],
     ['Moneda local', datos.monedaLocal], ['Moneda de casa', casa], ['Efectivo inicial (USD)', efectivo]].concat(tasas);

@@ -1,5 +1,5 @@
 import { abrirFormulario } from './forms.js';
-import { CATEGORIAS, choquesDe } from './compute.js';
+import { CATEGORIAS, choquesDe, costosAgrupados } from './compute.js';
 import { leerHora } from './parse.js';
 import { hora, horaInput, fechaCorta } from './formato.js';
 
@@ -11,11 +11,16 @@ export function montoAValores(m, prefijo, casa) {
   return m.moneda === 'USD' ? { [usd]: m.cantidad, [loc]: '' } : { [usd]: '', [loc]: m.cantidad };
 }
 
-export function costoAValores(f, casa) {
-  return {
+// "Partida ID" solo se escribe si se eligió una partida o si hay que limpiar una anterior (conPartida),
+// para que la edición funcione aunque la hoja todavía no tenga esa columna.
+export function costoAValores(f, casa, { conPartida = false } = {}) {
+  const valores = {
     'Detalle': f.detalle, 'Categoría': f.categoria, 'Fecha': f.fecha, 'Efectivo?': f.efectivo ? 'Si' : '',
     ...montoAValores(f.presupuesto, 'Presupuesto', casa), ...montoAValores(f.real, 'Real', casa),
   };
+  if (f.partida !== undefined && f.partida !== '') valores['Partida ID'] = Number(f.partida);
+  else if (conPartida) valores['Partida ID'] = '';
+  return valores;
 }
 
 export function actividadAValores(f) {
@@ -36,20 +41,31 @@ export function reservaAValores(f) {
   };
 }
 
-export function editarCosto(v, costo, { guardar, eliminar }) {
+// `pre.partidaId` abre un gasto nuevo dentro de una partida: hereda su categoría y "Pagado en efectivo".
+export function editarCosto(v, costo, { guardar, eliminar }, pre = {}) {
   const monedas = ['USD', v.monedaCasa];
   const inicial = m => (m ? { cantidad: m.cantidad, moneda: m.moneda } : { cantidad: '', moneda: 'USD' });
+  const grupos = costosAgrupados(v);
+  const tieneHijos = costo && grupos.some(g => g.costo.id === costo.id && g.hijos.length);
+  const candidatas = grupos.map(g => g.costo).filter(c => c.presupuesto && c.id !== costo?.id);
+  const partida = candidatas.find(c => c.id === (costo?.partidaId ?? pre.partidaId));
+  const campos = [
+    { nombre: 'real', etiqueta: 'Real (lo que pagaste)', tipo: 'monto', monedas, valor: inicial(costo?.real) },
+    { nombre: 'detalle', etiqueta: 'Detalle', tipo: 'texto', requerido: true, valor: costo?.detalle },
+    { nombre: 'categoria', etiqueta: 'Categoría', tipo: 'lista', opciones: CATEGORIAS.map(c => ({ valor: c, texto: c })), valor: costo?.categoria || partida?.categoria || 'Otros' },
+    { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha', valor: costo?.fecha || '' },
+    { nombre: 'efectivo', etiqueta: 'Pagado en efectivo', tipo: 'si-no', valor: costo ? costo.efectivo : partida?.efectivo },
+  ];
+  // Una partida que ya tiene gastos hijos no puede pasar a ser hija de otra.
+  if (!tieneHijos && candidatas.length) {
+    campos.push({ nombre: 'partida', etiqueta: 'Partida (presupuesto del que descuenta)', tipo: 'lista', valor: partida?.id ?? '',
+      opciones: [{ valor: '', texto: '(ninguna: gasto independiente)' }, ...candidatas.map(c => ({ valor: c.id, texto: c.detalle }))] });
+  }
+  if (!partida) campos.push({ nombre: 'presupuesto', etiqueta: 'Presupuesto', tipo: 'monto', monedas, valor: inicial(costo?.presupuesto) });
   abrirFormulario({
-    titulo: costo ? 'Editar gasto' : 'Nuevo gasto',
-    campos: [
-      { nombre: 'real', etiqueta: 'Real (lo que pagaste)', tipo: 'monto', monedas, valor: inicial(costo?.real) },
-      { nombre: 'detalle', etiqueta: 'Detalle', tipo: 'texto', requerido: true, valor: costo?.detalle },
-      { nombre: 'categoria', etiqueta: 'Categoría', tipo: 'lista', opciones: CATEGORIAS.map(c => ({ valor: c, texto: c })), valor: costo?.categoria || 'Otros' },
-      { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'fecha', valor: costo?.fecha || '' },
-      { nombre: 'efectivo', etiqueta: 'Pagado en efectivo', tipo: 'si-no', valor: costo?.efectivo },
-      { nombre: 'presupuesto', etiqueta: 'Presupuesto', tipo: 'monto', monedas, valor: inicial(costo?.presupuesto) },
-    ],
-    onGuardar: f => guardar(costoAValores(f, v.monedaCasa)),
+    titulo: costo ? 'Editar gasto' : partida ? `Nuevo gasto en ${partida.detalle}` : 'Nuevo gasto',
+    campos,
+    onGuardar: f => guardar(costoAValores({ presupuesto: { cantidad: '', moneda: 'USD' }, ...f }, v.monedaCasa, { conPartida: costo?.partidaId != null })),
     onEliminar: costo ? eliminar : null,
   });
 }

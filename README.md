@@ -13,7 +13,7 @@
 ![Google Apps Script](https://img.shields.io/badge/Google_Apps_Script-API-4285F4?logo=google&logoColor=white)
 ![Sin build](https://img.shields.io/badge/build-ninguno-lightgrey)
 ![PWA](https://img.shields.io/badge/PWA-offline-5a0fc8?logo=pwa&logoColor=white)
-![Pruebas](https://img.shields.io/badge/pruebas-94_pasando-15803d)
+![Pruebas](https://img.shields.io/badge/pruebas-104_pasando-15803d)
 
 </div>
 
@@ -41,6 +41,7 @@ Las actividades del día, la reserva que toca (con hora y lugar de recogida), el
 - **Presupuesto contra gasto real**, en USD y en moneda de casa, total y por persona.
 - Gráficos por categoría, gasto acumulado por día y efectivo (pagado, por pagar y libre).
 - Registro rápido: tocar un gasto abre el formulario con el campo **Real** primero.
+- **Partidas**: un presupuesto (por ejemplo, Compras) puede recibir varias compras reales; muestra cuánto se ha gastado y cuánto queda, sin duplicar el presupuesto.
 
 ### 🎟️ Reservas
 Tarjetas con fecha, hora, recogida y enlace directo a la reserva.
@@ -91,7 +92,7 @@ flowchart LR
 | Pestaña | Contenido |
 |---|---|
 | **Config** | Nombre del viaje, personas, moneda local y de casa, efectivo inicial y tipos de cambio (`USD-CRC`, `COP-CRC`, `COP-USD`…) |
-| **Costos** | Detalle, categoría, fecha, si fue en efectivo, **presupuesto** y **real** (en USD o en moneda de casa) |
+| **Costos** | Detalle, categoría, fecha, si fue en efectivo, **presupuesto** y **real** (en USD o en moneda de casa) y **Partida ID** (el gasto con presupuesto del que descuenta) |
 | **Itinerario** | Fecha, franja (Mañana, Tarde, Noche o Mañana-Tarde), hora inicio y fin opcionales, ciudad, actividad y si es obligatoria u opcional |
 | **Lugares** | Sitios dentro de una actividad, con dirección o enlace de Maps, notas y ✓ de hecho |
 | **Reservas** | Tour, fecha y hora, recogida, enlace y la actividad del itinerario a la que pertenece |

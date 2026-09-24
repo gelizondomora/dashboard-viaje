@@ -71,7 +71,7 @@ export function parsearDatos(raw) {
     if (fh === false) errores.push('fecha ilegible');
     return {
       id: f.id, detalle: String(val('Detalle')), categoria: String(val('Categoría')).trim() || 'Otros',
-      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si',
+      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si', partidaId: idDe(val('Partida ID')),
       presupuesto, real, error: errores[0] || null, ...meta(f),
     };
   });

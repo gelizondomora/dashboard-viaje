@@ -117,11 +117,11 @@ pruebaLogica('migrar: Config con efectivo inicial y tipos de cambio', () => {
 });
 pruebaLogica('migrar: Costos sin filas Efectivo/Sobrante y con columnas nuevas', () => {
   const c = libroMigrado().Costos;
-  igualL(c[0], ['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto CRC', 'Real USD', 'Real CRC', 'Por Persona']);
+  igualL(c[0], ['ID', 'Detalle', 'Categoría', 'Fecha', 'Efectivo?', 'Presupuesto USD', 'Presupuesto CRC', 'Real USD', 'Real CRC', 'Por Persona', 'Partida ID']);
   igualL(c.length, 17);
-  igualL(c[1], [1, 'Vuelos', 'Transporte', '', '', 696.92, 317098.6, '', '', 158549.3]);
-  igualL(c[2], [2, 'Comida', 'Comida', '', '', '', 150000, '', '', 75000]);
-  igualL(c[9], [9, 'Compras Varias', 'Compras', '', 'Si', 50, 22750, '', '', 11375]);
+  igualL(c[1], [1, 'Vuelos', 'Transporte', '', '', 696.92, 317098.6, '', '', 158549.3, '']);
+  igualL(c[2], [2, 'Comida', 'Comida', '', '', '', 150000, '', '', 75000, '']);
+  igualL(c[9], [9, 'Compras Varias', 'Compras', '', 'Si', 50, 22750, '', '', 11375, '']);
   igualL(c.some(f => f[1] === 'Efectivo' || f[1] === 'Sobrante'), false);
 });
 pruebaLogica('migrar: categorías propuestas', () => {

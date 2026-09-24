@@ -1,4 +1,4 @@
-const VERSION = 'dv-v2';
+const VERSION = 'dv-v3';
 const ARCHIVOS = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'js/main.js', 'js/parse.js', 'js/compute.js', 'js/queue.js', 'js/api.js', 'js/store.js', 'js/formato.js',
