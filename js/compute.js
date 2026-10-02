@@ -68,18 +68,55 @@ export function porCategoria(v) {
   return [...m.values()].sort((a, b) => orden(a.categoria) - orden(b.categoria) || a.categoria.localeCompare(b.categoria));
 }
 
-export function acumuladoPorDia(v) {
-  const cs = validos(v);
-  const conFecha = cs.filter(c => c.fecha);
-  const dias = [...new Set(conFecha.map(c => c.fecha))].sort();
-  let p = 0, r = 0;
-  const planeado = [], real = [];
-  for (const d of dias) {
-    for (const c of conFecha.filter(x => x.fecha === d)) { p += c.presupuesto?.usd || 0; r += c.real?.usd || 0; }
-    planeado.push(p);
-    real.push(r);
+// Fracción de un gasto que le toca a cada persona. Sin reparto propio usa el de su partida; sin ninguno, partes iguales.
+export function repartoDe(c, v, partida = null) {
+  const nombres = v.personasNombres;
+  const r = c.reparto || partida?.reparto;
+  if (!r) return Object.fromEntries(nombres.map(n => [n, 1 / nombres.length]));
+  const pct = n => { const k = Object.keys(r).find(x => normalizar(x) === normalizar(n)); return k ? r[k] : 0; };
+  return Object.fromEntries(nombres.map(n => [n, pct(n) / 100]));
+}
+
+// Presupuesto y gasto real de cada persona, total y por categoría (la categoría es la de la partida).
+export function porPersona(v) {
+  const personas = v.personasNombres.map(nombre => ({ nombre, presupuestoUsd: 0, realUsd: 0, categorias: {} }));
+  const sumar = (monto, fracciones, categoria, campo) => {
+    if (!monto) return;
+    for (const p of personas) {
+      const parte = monto.usd * (fracciones[p.nombre] || 0);
+      p[campo] += parte;
+      const cat = p.categorias[categoria] || (p.categorias[categoria] = { presupuestoUsd: 0, realUsd: 0 });
+      cat[campo] += parte;
+    }
+  };
+  for (const g of costosAgrupados(v)) {
+    const categoria = g.costo.categoria || 'Otros';
+    sumar(g.costo.presupuesto, repartoDe(g.costo, v), categoria, 'presupuestoUsd');
+    sumar(g.costo.real, repartoDe(g.costo, v), categoria, 'realUsd');
+    for (const h of g.hijos) sumar(h.real, repartoDe(h, v, g.costo), categoria, 'realUsd');
   }
-  return { dias, planeado, real, sinFecha: cs.length - conFecha.length };
+  return personas;
+}
+
+// Gasto real acumulado día a día sobre todos los días del viaje, contra el presupuesto total.
+// (El presupuesto no tiene fecha: se muestra como una línea de referencia, no como otro acumulado.)
+export function acumuladoPorDia(v) {
+  const conReal = validos(v).filter(c => c.real);
+  const fechas = [...v.actividades.map(a => a.fecha), ...conReal.map(c => c.fecha)].filter(Boolean).sort();
+  const sinFecha = conReal.filter(c => !c.fecha).length;
+  if (!fechas.length) return { dias: [], real: [], presupuesto: [], sinFecha };
+  const total = totales(v).presupuesto.usd;
+  const dias = [];
+  for (let d = fechas[0]; d <= fechas[fechas.length - 1]; d = diaSiguiente(d)) dias.push(d);
+  let acumulado = 0;
+  const real = dias.map(d => { for (const c of conReal) if (c.fecha === d) acumulado += c.real.usd; return acumulado; });
+  return { dias, real, presupuesto: dias.map(() => total), sinFecha };
+}
+
+function diaSiguiente(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const f = new Date(Date.UTC(y, m - 1, d + 1));
+  return f.toISOString().slice(0, 10);
 }
 
 export function convertir(monto, v) {

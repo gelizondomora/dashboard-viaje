@@ -14,7 +14,7 @@ function campoHtml(c) {
       control = `<select id="${id}" name="${c.nombre}" data-otra="${c.nombre}__otra">`
         + c.opciones.map(o => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')
         + `<option value="__otra"${conocida ? '' : ' selected'}>${esc(c.textoOtra ?? 'Otra ciudad…')}</option></select>`
-        + `<input name="${c.nombre}__otra" type="text" placeholder="Escribe el nombre"${conocida ? ' hidden' : ''} value="${conocida ? '' : esc(v)}">`;
+        + `<input name="${c.nombre}__otra" type="text" placeholder="${esc(c.placeholderOtra ?? 'Escribe el nombre')}"${conocida ? ' hidden' : ''} value="${conocida ? '' : esc(v)}">`;
       break;
     }
     case 'si-no':

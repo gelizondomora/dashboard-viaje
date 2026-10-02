@@ -1,6 +1,6 @@
 import { prueba, igual, cerca } from './t.js';
 import { parsearDatos } from '../js/parse.js';
-import { totales, efectivoRestante, porCategoria, acumuladoPorDia, convertir } from '../js/compute.js';
+import { totales, efectivoRestante, porCategoria, convertir } from '../js/compute.js';
 import { rawEjemplo, conValores } from './fixtures.js';
 
 const viaje = (raw = rawEjemplo()) => parsearDatos(raw);
@@ -36,13 +36,6 @@ prueba('dinero: presupuesto por categoría', () => {
   const c = porCategoria(viaje());
   igual(c.map(x => x.categoria), ['Transporte', 'Hospedaje', 'Comida', 'Tours', 'Compras']);
   [987.96, 853.04, 329.67, 249.3, 434.62].forEach((n, i) => cerca(c[i].presupuestoUsd, n, 0.01));
-});
-prueba('dinero: acumulado por día', () => {
-  let raw = conValores(rawEjemplo(), 'Costos', 1, { 'Fecha': '2026-09-27' });
-  raw = conValores(raw, 'Costos', 10, { 'Fecha': '2026-09-29', 'Real USD': 40 });
-  const a = acumuladoPorDia(viaje(raw));
-  igual([a.dias, a.real, a.sinFecha], [['2026-09-27', '2026-09-29'], [0, 40], 14]);
-  cerca(a.planeado[1], 736.52, 0.001);
 });
 prueba('dinero: conversor COP → USD y CRC', () => {
   const r = convertir(85000, viaje());

@@ -150,23 +150,49 @@ function migrarLibro(libro, enlacesReservas, datos) {
   };
 }
 
+// Columnas que la app puede usar aunque la hoja todavía no las tenga: se crean al escribirlas por primera vez.
+const COLUMNAS_OPCIONALES = { Costos: ['Partida ID', 'Reparto'] };
+
+/* Cambia valores de la pestaña Config (clave/valor); una clave que no existe se agrega al final. */
+function planConfig(libro, op) {
+  const t = libro.Config;
+  if (!t || !t.length) return { ok: false, error: 'la pestaña Config no existe' };
+  const acciones = [];
+  Object.keys(op.valores || {}).forEach(k => {
+    let fila = -1;
+    for (let j = 1; j < t.length; j++) if (normalizar(t[j][0]) === normalizar(k)) { fila = j; break; }
+    if (fila >= 0) acciones.push({ tipo: 'poner', tabla: 'Config', fila: fila, col: 1, valor: op.valores[k] });
+    else acciones.push({ tipo: 'agregarFila', tabla: 'Config', valores: [k, op.valores[k]] });
+  });
+  return { ok: true, acciones: acciones };
+}
+
 function planOperacion(libro, op) {
+  if (op.op === 'config') return planConfig(libro, op);
   if (TABLAS_EDITABLES.indexOf(op.tabla) < 0) return { ok: false, error: 'tabla desconocida: ' + op.tabla };
   const t = libro[op.tabla];
   if (!t || !t.length) return { ok: false, error: 'la pestaña ' + op.tabla + ' no existe' };
-  const enc = t[0];
+  let enc = t[0];
   const iId = indiceColumna(enc, 'ID');
   const valores = op.valores || {};
   const cols = {};
+  const encabezadosNuevos = [];
   const claves = Object.keys(valores);
   for (let k = 0; k < claves.length; k++) {
-    const i = indiceColumna(enc, claves[k]);
-    if (i < 0 || i === iId) return { ok: false, error: 'columna desconocida: ' + claves[k] };
+    let i = indiceColumna(enc, claves[k]);
+    if (i < 0) {
+      const opcional = (COLUMNAS_OPCIONALES[op.tabla] || []).filter(c => normalizar(c) === normalizar(claves[k]))[0];
+      if (!opcional) return { ok: false, error: 'columna desconocida: ' + claves[k] };
+      i = enc.length;
+      enc = enc.concat([opcional]);
+      encabezadosNuevos.push({ tipo: 'poner', tabla: op.tabla, fila: 0, col: i, valor: opcional });
+    }
+    if (i === iId) return { ok: false, error: 'columna desconocida: ' + claves[k] };
     cols[i] = valores[claves[k]];
   }
   if (op.op === 'agregar') {
     const id = proximoId(libro, op.tabla);
-    const acciones = [{ tipo: 'agregarFila', tabla: op.tabla, valores: enc.map((_, i) => (i === iId ? id : (i in cols ? cols[i] : ''))) }];
+    const acciones = encabezadosNuevos.concat([{ tipo: 'agregarFila', tabla: op.tabla, valores: enc.map((_, i) => (i === iId ? id : (i in cols ? cols[i] : ''))) }]);
     const contador = accionContador(libro, op.tabla, id);
     if (contador) acciones.unshift(contador);
     return { ok: true, id: id, acciones: acciones };
@@ -174,7 +200,7 @@ function planOperacion(libro, op) {
   const fila = buscarFila(t, op.id);
   if (fila < 0) return { ok: false, error: 'no existe' };
   if (op.op === 'modificar') {
-    return { ok: true, id: Number(op.id), acciones: Object.keys(cols).map(i => ({ tipo: 'poner', tabla: op.tabla, fila: fila, col: Number(i), valor: cols[i] })) };
+    return { ok: true, id: Number(op.id), acciones: encabezadosNuevos.concat(Object.keys(cols).map(i => ({ tipo: 'poner', tabla: op.tabla, fila: fila, col: Number(i), valor: cols[i] }))) };
   }
   if (op.op === 'eliminar') {
     const acciones = [];

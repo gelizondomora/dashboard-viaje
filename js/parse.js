@@ -42,6 +42,17 @@ export function leerFechaHora(v) {
   return false;
 }
 
+// "Ana=100; Luis=0" → { Ana: 100, Luis: 0 }. Vacío o ilegible → null (se reparte en partes iguales).
+export function leerReparto(v) {
+  if (vacio(v)) return null;
+  const r = {};
+  for (const parte of String(v).split(';')) {
+    const m = parte.match(/^\s*(.+?)\s*=\s*(-?\d+(?:[.,]\d+)?)\s*%?\s*$/);
+    if (m) r[m[1]] = Number(m[2].replace(',', '.'));
+  }
+  return Object.keys(r).length ? r : null;
+}
+
 export function parsearDatos(raw) {
   const cfg = {};
   for (const [k, v] of Object.entries(raw.config || {})) cfg[normalizar(k)] = v;
@@ -54,6 +65,9 @@ export function parsearDatos(raw) {
   const filas = n => raw.tablas?.[n]?.filas || [];
   const meta = f => ({ pendiente: !!f.pendiente, errorSync: f.errorSync || null });
   const idDe = v => { const n = leerMonto(v); return Number.isFinite(n) ? n : null; };
+  // Personas: nombres en Config ("Ana; Luis"); si no hay, nombres genéricos según la cantidad.
+  const escritos = String(cfg['nombres de personas'] ?? '').split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  const personasNombres = escritos.length ? escritos : Array.from({ length: numero('Personas') || 1 }, (_, i) => `Persona ${i + 1}`);
 
   const costos = filas('Costos').map(f => {
     const val = n => valorDe(f.valores, n);
@@ -71,7 +85,7 @@ export function parsearDatos(raw) {
     if (fh === false) errores.push('fecha ilegible');
     return {
       id: f.id, detalle: String(val('Detalle')), categoria: String(val('Categoría')).trim() || 'Otros',
-      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si', partidaId: idDe(val('Partida ID')),
+      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si', partidaId: idDe(val('Partida ID')), reparto: leerReparto(val('Reparto')),
       presupuesto, real, error: errores[0] || null, ...meta(f),
     };
   });
@@ -111,7 +125,7 @@ export function parsearDatos(raw) {
   });
 
   return {
-    nombre: String(cfg['nombre del viaje'] || 'Mi viaje'), personas: numero('Personas') || 1,
+    nombre: String(cfg['nombre del viaje'] || 'Mi viaje'), personas: personasNombres.length, personasNombres,
     monedaLocal: local, monedaCasa: casa, efectivoInicialUsd: numero('Efectivo inicial (USD)') || 0,
     tasas, leidoEn: raw.leidoEn || null, advertencias, costos, actividades, lugares, reservas,
   };

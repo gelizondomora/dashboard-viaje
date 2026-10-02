@@ -1,4 +1,4 @@
-import { totales, costosAgrupados } from './compute.js';
+import { totales, costosAgrupados, porPersona } from './compute.js';
 import { esc, dinero, fechaCorta, marcas } from './formato.js';
 import { graficosHtml } from './charts.js';
 
@@ -51,7 +51,12 @@ export function renderCostos(v, { filtro, abiertas = new Set() }) {
       : filaGasto(g.costo) + g.hijos.map(h => filaGasto(h, { hijo: true })).join('')))
     .join('');
   const conError = v.costos.filter(c => c.error && (!filtro || c.categoria === filtro)).map(c => filaGasto(c)).join('');
-  return kpis + graficosHtml() + `<section class="tarjeta"><div class="barra"><h2>Gastos</h2>
+  const personas = porPersona(v).map(p => `<li class="gasto"><div><strong>${esc(p.nombre)}</strong><small>presupuesto ${dinero(p.presupuestoUsd, 'USD')} · ${dinero(p.presupuestoUsd * v.tasas.usdCasa, casa)}</small></div>
+      <div class="montos"><span>${dinero(p.realUsd, 'USD')}</span><small>real · ${dinero(p.realUsd * v.tasas.usdCasa, casa)}</small></div></li>`).join('');
+  const porPersonaHtml = `<section class="tarjeta"><div class="barra"><h2>Por persona</h2><button class="enlace" data-accion="editar-personas">👥 Personas</button></div>
+    <ul class="lista-gastos sin-accion">${personas}</ul>
+    <p class="nota">Cada gasto se reparte en partes iguales, salvo que le asignes otro porcentaje al editarlo.</p></section>`;
+  return kpis + porPersonaHtml + graficosHtml() + `<section class="tarjeta"><div class="barra"><h2>Gastos</h2>
       <select id="filtro-categoria"><option value="">Todas</option>${categorias.map(c => `<option${c === filtro ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
       <button class="primario" data-accion="agregar-costo">＋ gasto</button></div>
     <ul class="lista-gastos">${lista}${conError}</ul></section>`;

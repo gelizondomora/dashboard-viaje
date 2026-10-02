@@ -5,7 +5,7 @@ import { crearApi, mensajeError } from './api.js';
 import { crearStore, crearMemoria } from './store.js';
 import { esc, dinero, hace } from './formato.js';
 import { abrirFormulario } from './forms.js';
-import { editarCosto, editarActividad, editarLugar, editarReserva } from './editores.js';
+import { editarCosto, editarActividad, editarLugar, editarReserva, editarPersonas, editarEfectivo } from './editores.js';
 import { renderHoy } from './render-hoy.js';
 import { renderItinerario } from './render-itinerario.js';
 import { renderCostos } from './render-costos.js';
@@ -29,7 +29,7 @@ let sincronizando = false;
 let vista = null;
 
 const guardar = () => store.guardar(estado);
-const VERBO = { agregar: 'agregar', modificar: 'modificar', eliminar: 'eliminar' };
+const VERBO = { agregar: 'agregar', modificar: 'modificar', eliminar: 'eliminar', config: 'actualizar la configuración' };
 
 function cabeceraHtml() {
   const pendientes = estado.ops.filter(o => o.estado === 'pendiente').length;
@@ -194,6 +194,8 @@ document.addEventListener('click', ev => {
     case 'agregar-lugar': editarLugar(vista, Number(el.dataset.actividad), null, acciones('Lugares', null)); break;
     case 'editar-lugar': { const l = buscar(vista.lugares); editarLugar(vista, l.actividadId, l, acciones('Lugares', id)); break; }
     case 'hecho': { const l = buscar(vista.lugares); if (!l) break; encolar('modificar', 'Lugares', id, { 'Hecho': l.hecho ? '' : 'Si' }); break; }
+    case 'editar-personas': editarPersonas(vista, { guardar: valores => encolar('config', 'Config', null, valores) }); break;
+    case 'editar-efectivo': editarEfectivo(vista, { guardar: valores => encolar('config', 'Config', null, valores) }); break;
     case 'agregar-costo': editarCosto(vista, null, acciones('Costos', null)); break;
     case 'editar-costo': editarCosto(vista, buscar(vista.costos), acciones('Costos', id)); break;
     case 'agregar-en-partida': estado.partidasAbiertas.add(id); editarCosto(vista, null, acciones('Costos', null), { partidaId: id }); break;

@@ -21,6 +21,7 @@ function aplicarOps(raw, ops, { marcar }) {
   if (!raw) return raw;
   const r = structuredClone(raw);
   for (const o of ops) {
+    if (o.op === 'config') { r.config = { ...r.config }; asignar(r.config, o.valores); continue; }
     const t = r.tablas[o.tabla];
     if (!t) continue;
     const marca = f => {

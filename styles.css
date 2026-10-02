@@ -104,3 +104,4 @@ dialog#hoja::backdrop { background: rgb(0 0 0 / .45); }
 .partida .nota { margin: .25rem 0; }
 .partida details summary { cursor: pointer; color: var(--primario); font-size: .85rem; }
 .gasto.hijo { padding-left: 1rem; }
+.sin-accion .gasto { cursor: default; }

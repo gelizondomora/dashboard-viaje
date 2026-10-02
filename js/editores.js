@@ -1,5 +1,5 @@
 import { abrirFormulario } from './forms.js';
-import { CATEGORIAS, choquesDe, costosAgrupados } from './compute.js';
+import { CATEGORIAS, choquesDe, costosAgrupados, repartoDe } from './compute.js';
 import { leerHora } from './parse.js';
 import { hora, horaInput, fechaCorta } from './formato.js';
 
@@ -13,15 +13,29 @@ export function montoAValores(m, prefijo, casa) {
 
 // "Partida ID" solo se escribe si se eligió una partida o si hay que limpiar una anterior (conPartida),
 // para que la edición funcione aunque la hoja todavía no tenga esa columna.
-export function costoAValores(f, casa, { conPartida = false } = {}) {
+// "Reparto" sigue la misma regla: solo se escribe si hay un reparto desigual o si hay que limpiar uno anterior.
+export function costoAValores(f, casa, { conPartida = false, conReparto = false } = {}) {
   const valores = {
     'Detalle': f.detalle, 'Categoría': f.categoria, 'Fecha': f.fecha, 'Efectivo?': f.efectivo ? 'Si' : '',
     ...montoAValores(f.presupuesto, 'Presupuesto', casa), ...montoAValores(f.real, 'Real', casa),
   };
   if (f.partida !== undefined && f.partida !== '') valores['Partida ID'] = Number(f.partida);
   else if (conPartida) valores['Partida ID'] = '';
+  if (f.reparto) valores['Reparto'] = f.reparto;
+  else if (conReparto) valores['Reparto'] = '';
   return valores;
 }
+
+// Porcentajes por persona → texto de la columna Reparto. Partes iguales → '' (es el comportamiento por defecto).
+export function repartoATexto(porcentajes, nombres) {
+  const igual = 100 / nombres.length;
+  if (porcentajes.every(p => Math.abs(p - igual) < 0.01)) return '';
+  return nombres.map((n, i) => `${n}=${porcentajes[i]}`).join(';');
+}
+
+const PCT_PREDEFINIDOS = ['100', '50', '0'];
+const pctTexto = fraccion => String(Math.round(fraccion * 10000) / 100);
+const leerPct = t => { const n = Number(String(t).replace('%', '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 export function actividadAValores(f) {
   return {
@@ -62,11 +76,53 @@ export function editarCosto(v, costo, { guardar, eliminar }, pre = {}) {
       opciones: [{ valor: '', texto: '(ninguna: gasto independiente)' }, ...candidatas.map(c => ({ valor: c.id, texto: c.detalle }))] });
   }
   if (!partida) campos.push({ nombre: 'presupuesto', etiqueta: 'Presupuesto', tipo: 'monto', monedas, valor: inicial(costo?.presupuesto) });
+  // Reparto por persona: 100 / 50 / 0 u otro porcentaje. Por defecto, el del gasto, el de su partida o partes iguales.
+  const nombres = v.personasNombres;
+  const conPersonas = nombres.length > 1;
+  if (conPersonas) {
+    const actual = repartoDe(costo || { reparto: null }, v, partida);
+    nombres.forEach((n, i) => campos.push({
+      nombre: `rep${i}`, etiqueta: `% que paga ${n}`, tipo: 'lista-otra', opciones: PCT_PREDEFINIDOS,
+      textoOtra: 'Otro %…', placeholderOtra: 'Porcentaje, por ejemplo 33.3', valor: pctTexto(actual[n]),
+    }));
+  }
+  const porcentajes = f => nombres.map((_, i) => leerPct(f[`rep${i}`]));
   abrirFormulario({
     titulo: costo ? 'Editar gasto' : partida ? `Nuevo gasto en ${partida.detalle}` : 'Nuevo gasto',
     campos,
-    onGuardar: f => guardar(costoAValores({ presupuesto: { cantidad: '', moneda: 'USD' }, ...f }, v.monedaCasa, { conPartida: costo?.partidaId != null })),
+    validar: f => {
+      if (!conPersonas) return null;
+      const suma = porcentajes(f).reduce((a, b) => a + b, 0);
+      return Math.abs(suma - 100) > 0.5 ? `Los porcentajes suman ${Math.round(suma * 100) / 100}%, no 100%.` : null;
+    },
+    onGuardar: f => guardar(costoAValores(
+      { presupuesto: { cantidad: '', moneda: 'USD' }, ...f, reparto: conPersonas ? repartoATexto(porcentajes(f), nombres) : '' },
+      v.monedaCasa, { conPartida: costo?.partidaId != null, conReparto: !!costo?.reparto })),
     onEliminar: costo ? eliminar : null,
+  });
+}
+
+// Personas del viaje: nombres separados por coma. Se guardan en Config.
+export function editarPersonas(v, { guardar }) {
+  abrirFormulario({
+    titulo: 'Personas del viaje',
+    campos: [{ nombre: 'nombres', etiqueta: 'Nombres, separados por coma', tipo: 'texto', requerido: true, valor: v.personasNombres.join(', ') }],
+    validar: f => {
+      const n = f.nombres.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+      return new Set(n.map(s => s.toLowerCase())).size !== n.length ? 'Hay nombres repetidos: los repartos se guardan por nombre.' : null;
+    },
+    onGuardar: f => {
+      const n = f.nombres.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+      guardar({ 'Nombres de personas': n.join('; '), 'Personas': n.length });
+    },
+  });
+}
+
+export function editarEfectivo(v, { guardar }) {
+  abrirFormulario({
+    titulo: 'Efectivo inicial',
+    campos: [{ nombre: 'monto', etiqueta: 'Efectivo con el que empieza el viaje (USD)', tipo: 'numero', requerido: true, valor: v.efectivoInicialUsd }],
+    onGuardar: f => guardar({ 'Efectivo inicial (USD)': f.monto }),
   });
 }
 

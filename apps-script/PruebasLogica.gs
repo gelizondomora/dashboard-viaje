@@ -249,3 +249,30 @@ pruebaLogica('migrar: reutiliza una columna Enlace que ya existe', () => {
     [2, 'Zipaquirá y lago Guatavita', 'Martes, 29 de septiembre de 2026, 8:00', 'Hotel', ENLACES_ORIGINALES[2], 4],
   ]);
 });
+
+pruebaLogica('config: cambia un valor existente y agrega uno nuevo', () => {
+  igualL(planOperacion(libroMigrado(), { opId: 'c1', op: 'config', tabla: 'Config', valores: { 'efectivo inicial (usd)': 300, 'Nombres de personas': 'Ana; Luis' } }), {
+    ok: true, acciones: [
+      { tipo: 'poner', tabla: 'Config', fila: 5, col: 1, valor: 300 },
+      { tipo: 'agregarFila', tabla: 'Config', valores: ['Nombres de personas', 'Ana; Luis'] },
+    ],
+  });
+});
+pruebaLogica('columnas opcionales: Reparto se crea sola la primera vez', () => {
+  const r = planOperacion(libroMigrado(), { opId: 'r1', op: 'modificar', tabla: 'Costos', id: 1, valores: { 'Reparto': 'Ana=100;Luis=0' } });
+  igualL(r.acciones, [
+    { tipo: 'poner', tabla: 'Costos', fila: 0, col: 11, valor: 'Reparto' },
+    { tipo: 'poner', tabla: 'Costos', fila: 1, col: 11, valor: 'Ana=100;Luis=0' },
+  ]);
+  const n = ejecutarAcciones(libroMigrado(), r.acciones);
+  igualL(tablaAObjetos(n.Costos).filas[0].valores.Reparto, 'Ana=100;Luis=0');
+  igualL(tablaAObjetos(n.Costos).filas[1].valores.Reparto, '');
+});
+pruebaLogica('columnas opcionales: agregar una fila con Reparto en una hoja sin esa columna', () => {
+  const r = procesarLote(libroMigrado(), [{ opId: 'r2', op: 'agregar', tabla: 'Costos', id: -1, valores: { 'Detalle': 'Taxi', 'Reparto': 'Ana=0;Luis=100' } }], 'AHORA');
+  igualL(r.resultados, [{ opId: 'r2', ok: true, id: 17 }]);
+  igualL([r.libro.Costos[0][11], r.libro.Costos[17][11], r.libro.Costos[17][1]], ['Reparto', 'Ana=0;Luis=100', 'Taxi']);
+});
+pruebaLogica('columnas opcionales: una columna cualquiera sigue siendo desconocida', () => {
+  igualL(planOperacion(libroMigrado(), { opId: 'r3', op: 'modificar', tabla: 'Itinerario', id: 1, valores: { 'Reparto': 'x' } }), { ok: false, error: 'columna desconocida: Reparto' });
+});

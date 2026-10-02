@@ -10,5 +10,6 @@ import './editores.test.js';
 import './timeline.test.js';
 import './render.test.js';
 import './partidas.test.js';
+import './personas.test.js';
 
 await ejecutar(typeof globalThis.probarTodo === 'function' ? globalThis.probarTodo() : []);

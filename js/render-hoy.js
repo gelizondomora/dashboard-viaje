@@ -21,7 +21,7 @@ export function renderHoy(v, { hoy }) {
       + reservasDelDia(v, est.dia).map(r => tarjetaReserva(r)).join('')
       + (acts.length ? acts.map(a => tarjetaActividad(a)).join('') : '<p class="vacio">Nada planeado para este día.</p>'));
   }
-  partes.push(`<section class="tarjeta"><h2>Efectivo disponible</h2><p class="grande${ef.usd < 0 ? ' negativo' : ''}">${dinero(ef.usd, 'USD')}</p>`
+  partes.push(`<section class="tarjeta"><div class="barra"><h2>Efectivo disponible</h2><button class="icono" data-accion="editar-efectivo" aria-label="Cambiar el efectivo inicial">✎</button></div><p class="grande${ef.usd < 0 ? ' negativo' : ''}">${dinero(ef.usd, 'USD')}</p>`
     + `<p>${dinero(ef.casa, v.monedaCasa)} · pagado ${dinero(ef.gastadoUsd, 'USD')} de ${dinero(v.efectivoInicialUsd, 'USD')}</p>`
     + `<p class="nota${ef.pronosticadoUsd < 0 ? ' negativo' : ''}">Balance pronosticado: ${dinero(ef.pronosticadoUsd, 'USD')} · ${dinero(ef.pronosticadoCasa, v.monedaCasa)}`
     + ` (faltan por pagar ${dinero(ef.comprometidoUsd, 'USD')})</p></section>`);

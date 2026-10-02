@@ -1,4 +1,4 @@
-import { porCategoria, acumuladoPorDia, efectivoRestante } from './compute.js';
+import { porCategoria, acumuladoPorDia, efectivoRestante, porPersona, CATEGORIAS } from './compute.js';
 import { fechaCorta } from './formato.js';
 
 const activos = [];
@@ -7,8 +7,10 @@ const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).
 
 export function graficosHtml() {
   return `<section class="tarjeta"><h2>Presupuesto vs real por categoría (USD)</h2><div class="grafico"><canvas id="g-categorias"></canvas></div></section>
-    <section class="tarjeta"><h2>Gasto acumulado por día (USD)</h2><div class="grafico"><canvas id="g-acumulado"></canvas></div><p class="nota" id="g-acumulado-nota"></p></section>
-    <section class="tarjeta"><h2>Efectivo (USD)</h2><div class="grafico pequeno"><canvas id="g-efectivo"></canvas></div></section>`;
+    <section class="tarjeta"><h2>Gasto real acumulado vs presupuesto total (USD)</h2><div class="grafico"><canvas id="g-acumulado"></canvas></div><p class="nota" id="g-acumulado-nota"></p></section>
+    <section class="tarjeta"><h2>Efectivo (USD)</h2><div class="grafico pequeno"><canvas id="g-efectivo"></canvas></div></section>
+    <section class="tarjeta"><h2>Presupuesto vs real por persona (USD)</h2><div class="grafico pequeno"><canvas id="g-personas"></canvas></div></section>
+    <section class="tarjeta"><h2 id="g-personas-cat-titulo">Por persona y categoría (USD)</h2><div class="grafico"><canvas id="g-personas-cat"></canvas></div></section>`;
 }
 
 export function pintarGraficos(v) {
@@ -37,21 +39,21 @@ export function pintarGraficos(v) {
   }));
 
   const ac = acumuladoPorDia(v);
-  document.getElementById('g-acumulado-nota').textContent = ac.sinFecha ? `${ac.sinFecha} gastos sin fecha no aparecen en este gráfico.` : '';
+  document.getElementById('g-acumulado-nota').textContent = ac.sinFecha ? `${ac.sinFecha} gastos pagados sin fecha no aparecen en este gráfico.` : '';
   if (ac.dias.length) {
     activos.push(new Chart(document.getElementById('g-acumulado'), {
       type: 'line',
       data: {
         labels: ac.dias.map(fechaCorta),
         datasets: [
-          { label: 'Planeado', data: ac.planeado.map(r2), borderColor: css('--c0'), backgroundColor: css('--c0'), tension: 0.2 },
-          { label: 'Real', data: ac.real.map(r2), borderColor: css('--c1'), backgroundColor: css('--c1'), tension: 0.2 },
+          { label: 'Presupuesto total', data: ac.presupuesto.map(r2), borderColor: css('--c0'), backgroundColor: css('--c0'), borderDash: [6, 4], pointRadius: 0 },
+          { label: 'Real acumulado', data: ac.real.map(r2), borderColor: css('--c1'), backgroundColor: css('--c1'), tension: 0.2 },
         ],
       },
-      options: opciones(),
+      options: { ...opciones(), scales: { y: { beginAtZero: true } } },
     }));
   } else {
-    document.getElementById('g-acumulado').closest('.grafico').outerHTML = '<p class="nota">Agrega fechas a los gastos para ver el acumulado por día.</p>';
+    document.getElementById('g-acumulado').closest('.grafico').outerHTML = '<p class="nota">Agrega actividades o gastos con fecha para ver el acumulado por día.</p>';
   }
 
   const ef = efectivoRestante(v);
@@ -66,5 +68,35 @@ export function pintarGraficos(v) {
       }],
     },
     options: opciones(),
+  }));
+
+  // Por persona: presupuesto contra real, y el desglose por categoría (real si ya hay gastos; si no, presupuesto).
+  const personas = porPersona(v);
+  activos.push(new Chart(document.getElementById('g-personas'), {
+    type: 'bar',
+    data: {
+      labels: personas.map(p => p.nombre),
+      datasets: [
+        { label: 'Presupuesto', data: personas.map(p => r2(p.presupuestoUsd)), backgroundColor: css('--c0') },
+        { label: 'Real', data: personas.map(p => r2(p.realUsd)), backgroundColor: css('--c1') },
+      ],
+    },
+    options: opciones(),
+  }));
+  const hayReal = personas.some(p => p.realUsd > 0);
+  const campo = hayReal ? 'realUsd' : 'presupuestoUsd';
+  document.getElementById('g-personas-cat-titulo').textContent = `${hayReal ? 'Gasto real' : 'Presupuesto'} por persona y categoría (USD)`;
+  const orden = k => { const i = CATEGORIAS.indexOf(k); return i < 0 ? CATEGORIAS.length : i; };
+  const categorias = [...new Set(personas.flatMap(p => Object.keys(p.categorias)))].sort((a, b) => orden(a) - orden(b) || a.localeCompare(b));
+  const paleta = ['--c0', '--c1', '--c2', '--c3', '--ok', '--suave'];
+  activos.push(new Chart(document.getElementById('g-personas-cat'), {
+    type: 'bar',
+    data: {
+      labels: personas.map(p => p.nombre),
+      datasets: categorias.map((cat, i) => ({
+        label: cat, data: personas.map(p => r2(p.categorias[cat]?.[campo] || 0)), backgroundColor: css(paleta[i % paleta.length]),
+      })),
+    },
+    options: { ...opciones(), scales: { x: { stacked: true }, y: { stacked: true } } },
   }));
 }
