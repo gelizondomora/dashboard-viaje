@@ -276,3 +276,8 @@ pruebaLogica('columnas opcionales: agregar una fila con Reparto en una hoja sin 
 pruebaLogica('columnas opcionales: una columna cualquiera sigue siendo desconocida', () => {
   igualL(planOperacion(libroMigrado(), { opId: 'r3', op: 'modificar', tabla: 'Itinerario', id: 1, valores: { 'Reparto': 'x' } }), { ok: false, error: 'columna desconocida: Reparto' });
 });
+
+pruebaLogica('columnas opcionales: Pagó también se crea sola', () => {
+  const r = planOperacion(libroMigrado(), { opId: 'p1', op: 'modificar', tabla: 'Costos', id: 1, valores: { 'pago': 'Luis' } });
+  igualL(r.acciones, [{ tipo: 'poner', tabla: 'Costos', fila: 0, col: 11, valor: 'Pagó' }, { tipo: 'poner', tabla: 'Costos', fila: 1, col: 11, valor: 'Luis' }]);
+});

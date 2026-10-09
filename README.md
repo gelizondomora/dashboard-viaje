@@ -13,7 +13,7 @@
 ![Google Apps Script](https://img.shields.io/badge/Google_Apps_Script-API-4285F4?logo=google&logoColor=white)
 ![Sin build](https://img.shields.io/badge/build-ninguno-lightgrey)
 ![PWA](https://img.shields.io/badge/PWA-offline-5a0fc8?logo=pwa&logoColor=white)
-![Pruebas](https://img.shields.io/badge/pruebas-115_pasando-15803d)
+![Pruebas](https://img.shields.io/badge/pruebas-124_pasando-15803d)
 
 </div>
 
@@ -43,6 +43,7 @@ Las actividades del día, la reserva que toca (con hora y lugar de recogida), el
 - Registro rápido: tocar un gasto abre el formulario con el campo **Real** primero.
 - **Partidas**: un presupuesto (por ejemplo, Compras) puede recibir varias compras reales; muestra cuánto se ha gastado y cuánto queda, sin duplicar el presupuesto.
 - **Personas**: agrega a quienes viajan y reparte cada gasto por porcentaje (100 %, 50 %, 0 % u otro); hay totales y gráficos por persona.
+- **Cuentas entre personas**: cada gasto registra quién pagó (por defecto, quien tiene el 100 %; si se reparte, la persona 1) y la app calcula quién le debe a quién, con una matriz y la lista mínima de pagos para quedar a mano.
 
 ### 🎟️ Reservas
 Tarjetas con fecha, hora, recogida y enlace directo a la reserva.
@@ -93,7 +94,7 @@ flowchart LR
 | Pestaña | Contenido |
 |---|---|
 | **Config** | Nombre del viaje, nombres de las personas, moneda local y de casa, efectivo inicial y tipos de cambio (`USD-CRC`, `COP-CRC`, `COP-USD`…) |
-| **Costos** | Detalle, categoría, fecha, si fue en efectivo, **presupuesto** y **real** (en USD o en moneda de casa) **Partida ID** (el gasto con presupuesto del que descuenta) y **Reparto** (porcentaje por persona, por ejemplo `Ana=100;Luis=0`) |
+| **Costos** | Detalle, categoría, fecha, si fue en efectivo, **presupuesto** y **real** (en USD o en moneda de casa) **Partida ID** (el gasto con presupuesto del que descuenta) **Reparto** (porcentaje por persona, por ejemplo `Ana=100;Luis=0`) y **Pagó** (quién pagó; vacío = automático) |
 | **Itinerario** | Fecha, franja (Mañana, Tarde, Noche o Mañana-Tarde), hora inicio y fin opcionales, ciudad, actividad y si es obligatoria u opcional |
 | **Lugares** | Sitios dentro de una actividad, con dirección o enlace de Maps, notas y ✓ de hecho |
 | **Reservas** | Tour, fecha y hora, recogida, enlace y la actividad del itinerario a la que pertenece |
@@ -107,7 +108,7 @@ Las columnas se reconocen **por su nombre**, sin importar mayúsculas ni tildes,
 
 1. En tu hoja: **Extensiones → Apps Script**.
 2. Crea tres archivos y pega en cada uno su contenido de [`apps-script/`](apps-script): `Logica.gs`, `PruebasLogica.gs` y `Codigo.gs`.
-3. Ejecuta **`probarTodo`**: debe decir `31 ok, 0 fallas`.
+3. Ejecuta **`probarTodo`**: debe decir `32 ok, 0 fallas`.
 4. Ejecuta **`prepararHoja`** una sola vez. Primero crea un respaldo en tu Drive y luego convierte la hoja a la estructura de arriba.
 
 </details>

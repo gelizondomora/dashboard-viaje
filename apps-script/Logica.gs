@@ -151,7 +151,7 @@ function migrarLibro(libro, enlacesReservas, datos) {
 }
 
 // Columnas que la app puede usar aunque la hoja todavía no las tenga: se crean al escribirlas por primera vez.
-const COLUMNAS_OPCIONALES = { Costos: ['Partida ID', 'Reparto'] };
+const COLUMNAS_OPCIONALES = { Costos: ['Partida ID', 'Reparto', 'Pagó'] };
 
 /* Cambia valores de la pestaña Config (clave/valor); una clave que no existe se agrega al final. */
 function planConfig(libro, op) {

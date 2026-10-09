@@ -85,7 +85,7 @@ export function parsearDatos(raw) {
     if (fh === false) errores.push('fecha ilegible');
     return {
       id: f.id, detalle: String(val('Detalle')), categoria: String(val('Categoría')).trim() || 'Otros',
-      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si', partidaId: idDe(val('Partida ID')), reparto: leerReparto(val('Reparto')),
+      fecha: fh ? fh.fecha : null, efectivo: normalizar(val('Efectivo?')) === 'si', partidaId: idDe(val('Partida ID')), reparto: leerReparto(val('Reparto')), pago: String(val('Pagó')).trim() || null,
       presupuesto, real, error: errores[0] || null, ...meta(f),
     };
   });

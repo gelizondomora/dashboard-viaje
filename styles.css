@@ -105,3 +105,14 @@ dialog#hoja::backdrop { background: rgb(0 0 0 / .45); }
 .partida details summary { cursor: pointer; color: var(--primario); font-size: .85rem; }
 .gasto.hijo { padding-left: 1rem; }
 .sin-accion .gasto { cursor: default; }
+.tabla-desplazable { overflow-x: auto; margin: .6rem 0; }
+.matriz { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.matriz th, .matriz td { border: 1px solid var(--borde); padding: .4rem .5rem; text-align: right; white-space: nowrap; }
+.matriz th:first-child { text-align: left; }
+.matriz td small { display: block; color: var(--suave); }
+.matriz thead th { background: var(--fondo); }
+.pagos, .balances { list-style: none; padding: 0; margin: .4rem 0; }
+.pagos li { padding: .3rem 0; }
+.balances li { font-size: .85rem; color: var(--suave); padding: .15rem 0; }
+.balances strong { color: var(--texto); }
+.balances strong.negativo { color: var(--alerta); }

@@ -220,3 +220,50 @@ export function diasDelItinerario(v) {
     return { fecha, ciudad: actividades[0]?.ciudad || '', actividades };
   });
 }
+
+// Quién pagó un gasto: el elegido (si es una de las personas); si no, quien tiene el 100 % del reparto; si no, la persona 1.
+export function pagadorDe(c, v, partida = null) {
+  const nombres = v.personasNombres;
+  const elegido = c.pago && nombres.find(n => normalizar(n) === normalizar(c.pago));
+  if (elegido) return elegido;
+  const r = repartoDe(c, v, partida);
+  return nombres.find(n => Math.abs((r[n] || 0) - 1) < 1e-9) || nombres[0];
+}
+
+// Cuentas entre personas, solo con montos reales (USD).
+// matriz[deudor][acreedor] = deuda neta de ese par; transferencias = lista mínima de pagos para quedar a mano.
+export function deudas(v) {
+  const nombres = v.personasNombres;
+  const ceros = () => Object.fromEntries(nombres.map(n => [n, 0]));
+  const pagado = ceros(), consumo = ceros();
+  const debe = Object.fromEntries(nombres.map(n => [n, ceros()]));
+  const registrar = (c, partida) => {
+    if (!c.real) return;
+    const quien = pagadorDe(c, v, partida);
+    const reparto = repartoDe(c, v, partida);
+    pagado[quien] += c.real.usd;
+    for (const n of nombres) {
+      const parte = c.real.usd * (reparto[n] || 0);
+      consumo[n] += parte;
+      if (n !== quien) debe[n][quien] += parte;
+    }
+  };
+  for (const g of costosAgrupados(v)) {
+    registrar(g.costo, null);
+    for (const h of g.hijos) registrar(h, g.costo);
+  }
+  const matriz = Object.fromEntries(nombres.map(a => [a, Object.fromEntries(nombres.map(b => [b, a === b ? 0 : Math.max(0, debe[a][b] - debe[b][a])]))]));
+  const balance = Object.fromEntries(nombres.map(n => [n, pagado[n] - consumo[n]]));
+  const deudores = nombres.filter(n => balance[n] < -0.005).map(n => ({ n, m: -balance[n] })).sort((a, b) => b.m - a.m);
+  const acreedores = nombres.filter(n => balance[n] > 0.005).map(n => ({ n, m: balance[n] })).sort((a, b) => b.m - a.m);
+  const transferencias = [];
+  for (let i = 0, j = 0; i < deudores.length && j < acreedores.length;) {
+    const monto = Math.min(deudores[i].m, acreedores[j].m);
+    transferencias.push({ de: deudores[i].n, a: acreedores[j].n, usd: monto });
+    deudores[i].m -= monto;
+    acreedores[j].m -= monto;
+    if (deudores[i].m < 0.005) i++;
+    if (acreedores[j].m < 0.005) j++;
+  }
+  return { pagado, consumo, balance, matriz, transferencias };
+}

@@ -14,7 +14,7 @@ export function montoAValores(m, prefijo, casa) {
 // "Partida ID" solo se escribe si se eligió una partida o si hay que limpiar una anterior (conPartida),
 // para que la edición funcione aunque la hoja todavía no tenga esa columna.
 // "Reparto" sigue la misma regla: solo se escribe si hay un reparto desigual o si hay que limpiar uno anterior.
-export function costoAValores(f, casa, { conPartida = false, conReparto = false } = {}) {
+export function costoAValores(f, casa, { conPartida = false, conReparto = false, conPago = false } = {}) {
   const valores = {
     'Detalle': f.detalle, 'Categoría': f.categoria, 'Fecha': f.fecha, 'Efectivo?': f.efectivo ? 'Si' : '',
     ...montoAValores(f.presupuesto, 'Presupuesto', casa), ...montoAValores(f.real, 'Real', casa),
@@ -23,6 +23,9 @@ export function costoAValores(f, casa, { conPartida = false, conReparto = false 
   else if (conPartida) valores['Partida ID'] = '';
   if (f.reparto) valores['Reparto'] = f.reparto;
   else if (conReparto) valores['Reparto'] = '';
+  // "Pagó" vacío = automático (quien tiene el 100 %, si no la persona 1); solo se escribe si alguien se eligió a mano.
+  if (f.pago) valores['Pagó'] = f.pago;
+  else if (conPago) valores['Pagó'] = '';
   return valores;
 }
 
@@ -85,6 +88,10 @@ export function editarCosto(v, costo, { guardar, eliminar }, pre = {}) {
       nombre: `rep${i}`, etiqueta: `% que paga ${n}`, tipo: 'lista-otra', opciones: PCT_PREDEFINIDOS,
       textoOtra: 'Otro %…', placeholderOtra: 'Porcentaje, por ejemplo 33.3', valor: pctTexto(actual[n]),
     }));
+    campos.push({
+      nombre: 'pago', etiqueta: 'Pagó', tipo: 'lista', valor: costo?.pago ? (nombres.find(n => n.toLowerCase() === costo.pago.toLowerCase()) ?? '') : '',
+      opciones: [{ valor: '', texto: `Automático (quien tiene el 100 %; si no, ${nombres[0]})` }, ...nombres.map(n => ({ valor: n, texto: n }))],
+    });
   }
   const porcentajes = f => nombres.map((_, i) => leerPct(f[`rep${i}`]));
   abrirFormulario({
@@ -97,7 +104,7 @@ export function editarCosto(v, costo, { guardar, eliminar }, pre = {}) {
     },
     onGuardar: f => guardar(costoAValores(
       { presupuesto: { cantidad: '', moneda: 'USD' }, ...f, reparto: conPersonas ? repartoATexto(porcentajes(f), nombres) : '' },
-      v.monedaCasa, { conPartida: costo?.partidaId != null, conReparto: !!costo?.reparto })),
+      v.monedaCasa, { conPartida: costo?.partidaId != null, conReparto: !!costo?.reparto, conPago: !!costo?.pago })),
     onEliminar: costo ? eliminar : null,
   });
 }
